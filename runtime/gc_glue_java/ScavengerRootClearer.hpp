@@ -222,7 +222,7 @@ public:
 		 * However Concurrent Scavenger runs might be interlaced with STW Scavenger time to time
 		 * (for example for reducing amount of floating garbage)
 		 */
-		if (!_scavenger->isConcurrentInProgress())
+		if (!_scavenger->isConcurrentCycleInProgress())
 #endif /* defined(OMR_GC_CONCURRENT_SCAVENGER) */
 		{
 			MM_RootScanner::scanJNIWeakGlobalReferences(env);
