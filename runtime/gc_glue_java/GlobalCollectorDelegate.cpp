@@ -376,6 +376,8 @@ MM_GlobalCollectorDelegate::isTimeForGlobalGCKickoff()
 		if (numClassLoaderBlocks > _extensions->classLoaderManager->getLastUnloadNumOfClassLoaders()) {
 			recentlyLoaded += (numClassLoaderBlocks - _extensions->classLoaderManager->getLastUnloadNumOfClassLoaders());
 		}
+//		OMRPORT_ACCESS_FROM_OMRVM(_extensions->getOmrVM());
+//		omrtty_printf("GlobalCollectorDelegate::isTimeForGlobalGCKickoff recentlyLoaded %zu\n", recentlyLoaded);
 		result = recentlyLoaded >= _extensions->dynamicClassUnloadingKickoffThreshold;
 	}
 

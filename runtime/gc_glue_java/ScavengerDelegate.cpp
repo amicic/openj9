@@ -266,6 +266,7 @@ MM_ScavengerDelegate::internalGarbageCollect_shouldPercolateGarbageCollect(MM_En
 	bool shouldPercolate = false;
 
 	if (private_shouldPercolateGarbageCollect_classUnloading(envBase)) {
+		// trace point?
 		*percolateReason = UNLOADING_CLASSES;
 		*percolateType = J9MMCONSTANT_IMPLICIT_GC_PERCOLATE_UNLOADING_CLASSES;
 		shouldPercolate = true;
@@ -642,8 +643,7 @@ MM_ScavengerDelegate::private_shouldPercolateGarbageCollect_classUnloading(MM_En
 	bool shouldGCPercolate = false;
 
 #if defined(J9VM_GC_DYNAMIC_CLASS_UNLOADING)
-	MM_Collector *globalCollector = _extensions->getGlobalCollector();
-	shouldGCPercolate = globalCollector->isTimeForGlobalGCKickoff();
+	shouldGCPercolate = _extensions->getGlobalCollector()->isTimeForGlobalGCKickoff();
 #endif
 
 	return shouldGCPercolate;
