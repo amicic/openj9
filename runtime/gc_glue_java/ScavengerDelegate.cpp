@@ -746,12 +746,33 @@ MM_ScavengerDelegate::signalThreadsToFlushCaches(MM_EnvironmentBase *currentEnvB
 	while((walkThread = vmThreadListIterator.nextVMThread()) != NULL) {
 		vmFuncs->J9SignalAsyncEvent(_javaVM, walkThread, _flushCachesAsyncCallbackKey);
 
-		if (0 == (walkThread->publicFlags & J9_PUBLIC_FLAGS_VM_ACCESS)) {
+		uintptr_t publicFlags = walkThread->publicFlags;
+
+		if (0 == (publicFlags & J9_PUBLIC_FLAGS_VM_ACCESS)) {
 			/* For threads that do not hold VM access, we should not wait, but flush on their behalf right now.
-			 * Hold public mutex to prevent target thread acquiring VM access and racing with our flush. */
+			 * not sure about this any more (if a thread had no flags set, its not forced to
+			 * go slow path (therefore will not hold mutex while acquring VM access): Hold public mutex to prevent target thread acquiring VM access and racing with our flush.
+			 * new: Hold public mutex to serialize with pair (not to jump in a middle) of reset_VM_access_flag&VMAccessHook,
+			 * 		that could otherwise make this thread see active survivor/tenure cache and attempt to clear cache (create remainders)
+			 * 		which could race with the target thread while tring to restore those remainders */
 			MM_EnvironmentStandard *walkEnv = MM_EnvironmentStandard::getEnvironment(walkThread->omrVMThread);
 			omrthread_monitor_enter(walkThread->publicFlagsMutex);
-			walkEnv->flushGCCaches(false);
+			uintptr_t publicFlags1 = walkThread->publicFlags;
+			if (0 == (publicFlags1 & J9_PUBLIC_FLAGS_VM_ACCESS)) {
+//				if ((0 == publicFlags1) && (0 == rand() % 3)) {
+//				if ((NULL != walkEnv->_survivorTLHRemainderBase) || (0 == rand() % 10)) {
+//					omrthread_sleep(1);
+
+//					if (walkEnv->_survivorTLHRemainderBase || walkEnv->_survivorTLHRemainderTop) {
+//						OMRPORT_ACCESS_FROM_ENVIRONMENT(currentEnvBase);
+//						omrtty_printf("signalThreadsToFlushCaches current/walkThread %llx/%llx survivorRemainderBase/Top %llx/%llx publicFlags %llx\n",
+//								currentEnvBase->getLanguageVMThread(), walkThread, walkEnv->_survivorTLHRemainderBase, walkEnv->_survivorTLHRemainderTop,
+//								publicFlags1);
+//					}
+
+//				}
+				walkEnv->flushGCCaches(false);
+			}
 			omrthread_monitor_exit(walkThread->publicFlagsMutex);
 		}
 	}

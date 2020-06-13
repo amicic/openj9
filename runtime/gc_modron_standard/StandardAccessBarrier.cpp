@@ -391,6 +391,10 @@ MM_StandardAccessBarrier::jniGetPrimitiveArrayCritical(J9VMThread* vmThread, jar
 		shouldCopy = true;
 	}
 
+//	PORT_ACCESS_FROM_VMC(vmThread);
+//	j9tty_printf(PORTLIB, "jniGetPrimitiveArrayCritical vmThread %llx shouldCopy %d\n",
+//			vmThread, shouldCopy);
+
 	if(shouldCopy) {
 		VM_VMAccess::inlineEnterVMFromJNI(vmThread);
 		J9IndexableObject *arrayObject = (J9IndexableObject*)J9_JNI_UNWRAP_REFERENCE(array);
@@ -431,6 +435,10 @@ MM_StandardAccessBarrier::jniReleasePrimitiveArrayCritical(J9VMThread* vmThread,
 	if (alwaysCopyInCritical) {
 		shouldCopy = true;
 	}
+
+//	PORT_ACCESS_FROM_VMC(vmThread);
+//	j9tty_printf(PORTLIB, "jniReleasePrimitiveArrayCritical vmThread %llx shouldCopy %d\n",
+//			vmThread, shouldCopy);
 
 	if(shouldCopy) {
 		VM_VMAccess::inlineEnterVMFromJNI(vmThread);
@@ -492,7 +500,15 @@ MM_StandardAccessBarrier::jniGetStringCritical(J9VMThread* vmThread, jstring str
 			isCompressed = true;
 			shouldCopy = true;
 		}
+	} else if (_extensions->isConcurrentScavengerEnabled()) {
+		VM_VMAccess::inlineEnterVMFromJNI(vmThread);
+		hasVMAccess = true;
 	}
+
+//	PORT_ACCESS_FROM_VMC(vmThread);
+//	j9tty_printf(PORTLIB, "jniGetStringCritical vmThread %llx shouldCopy %d hasVMAccess %d\n",
+//			vmThread, shouldCopy, hasVMAccess);
+//
 
 	if (shouldCopy) {
 		J9Object *stringObject = (J9Object*)J9_JNI_UNWRAP_REFERENCE(str);
@@ -564,6 +580,10 @@ MM_StandardAccessBarrier::jniReleaseStringCritical(J9VMThread* vmThread, jstring
 			shouldCopy = true;
 		}
 	}
+
+//	PORT_ACCESS_FROM_VMC(vmThread);
+//	j9tty_printf(PORTLIB, "jniReleaseStringCritical vmThread %llx shouldCopy %d hasVMAccess %d\n",
+//			vmThread, shouldCopy, hasVMAccess);
 
 	if (shouldCopy) {
 		// String data is not copied back
