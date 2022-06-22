@@ -287,6 +287,7 @@ MM_MarkingDelegate::completeMarking(MM_EnvironmentBase *env)
 									if ((0 == (J9CLASS_EXTENDED_FLAGS(clazz) & J9ClassGCScanned)) && _markingScheme->isMarked(clazz->classObject)) {
 										J9CLASS_EXTENDED_FLAGS_SET(clazz, J9ClassGCScanned);
 
+										Trc_MM_MarkingDelegate_completeMarking_scanClass1(env->getLanguageVMThread(), clazz, clazz->classObject);
 										scanClass(env, clazz);
 										/* This may result in other class loaders being marked,
 										 * so we have to do another pass
@@ -307,6 +308,7 @@ MM_MarkingDelegate::completeMarking(MM_EnvironmentBase *env)
 								while (NULL != (segment = segmentIterator.nextSegment())) {
 									GC_ClassHeapIterator classHeapIterator(javaVM, segment);
 									while (NULL != (clazz = classHeapIterator.nextClass())) {
+										Trc_MM_MarkingDelegate_completeMarking_scanClass2(env->getLanguageVMThread(), clazz, clazz->classObject);
 										scanClass(env, clazz);
 										/* This may result in other class loaders being marked,
 										 * so we have to do another pass
@@ -324,6 +326,7 @@ MM_MarkingDelegate::completeMarking(MM_EnvironmentBase *env)
 								Assert_MM_true(NULL != classLoader->classHashTable);
 								clazz = javaVM->internalVMFunctions->hashClassTableStartDo(classLoader, &walkState, 0);
 								while (NULL != clazz) {
+									Trc_MM_MarkingDelegate_completeMarking_markObject(env->getLanguageVMThread(), clazz, clazz->classObject);
 									_markingScheme->markObjectNoCheck(env, (omrobjectptr_t )clazz->classObject);
 									_anotherClassMarkPass = true;
 									clazz = javaVM->internalVMFunctions->hashClassTableNextDo(&walkState);
@@ -401,6 +404,7 @@ MM_MarkingDelegate::scanClass(MM_EnvironmentBase *env, J9Class *clazz)
 		GC_ClassIteratorClassSlots classSlotIterator((J9JavaVM*)env->getLanguageVM(), clazz);
 		J9Class *classPtr;
 		while (NULL != (classPtr = classSlotIterator.nextSlot())) {
+			Trc_MM_MarkingDelegate_scanClass_markObject(env->getLanguageVMThread(), classPtr, classPtr->classObject);
 			_markingScheme->markObject(env, classPtr->classObject);
 		}
 	}

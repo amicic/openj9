@@ -218,6 +218,7 @@ MM_ConcurrentMarkingDelegate::collectClassRoots(MM_EnvironmentBase *env, bool *c
 				if (env->isExclusiveAccessRequestWaiting()) {
 					goto quitMarkClasses;
 				} else {
+					Trc_MM_ConcurrentMarkingDelegate_collectClassRoots(env->getLanguageVMThread(), clazz);
 					_markingScheme->getMarkingDelegate()->scanClass(env, clazz);
 				}
 			}
@@ -388,6 +389,7 @@ MM_ConcurrentMarkingDelegate::concurrentClassMark(MM_EnvironmentBase *env, bool 
 					while(NULL != (clazz = classHeapIterator.nextClass())) {
 						/* TODO CRGTMP investigate proper value here */
 						sizeTraced += sizeof(J9Class);
+						Trc_MM_ConcurrentMarkingDelegate_concurrentClassMark_scanClass(env->getLanguageVMThread(), clazz, clazz->classObject);
 						markingDelegate->scanClass(env, clazz);
 						if (env->isExclusiveAccessRequestWaiting()) {	/* interrupt if exclusive access request is waiting */
 							goto quitConcurrentClassMark;
@@ -405,6 +407,7 @@ MM_ConcurrentMarkingDelegate::concurrentClassMark(MM_EnvironmentBase *env, bool 
 				clazz = _javaVM->internalVMFunctions->hashClassTableStartDo(classLoader, &walkState, 0);
 				while (NULL != clazz) {
 					sizeTraced += sizeof(uintptr_t);
+					Trc_MM_ConcurrentMarkingDelegate_concurrentClassMark_markObject(env->getLanguageVMThread(), clazz, clazz->classObject);
 					_markingScheme->markObject(env, (j9object_t)clazz->classObject);
 					if (env->isExclusiveAccessRequestWaiting()) {	/* interrupt if exclusive access request is waiting */
 						goto quitConcurrentClassMark;

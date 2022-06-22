@@ -130,6 +130,9 @@ public:
 		case GC_ObjectModel::SCAN_OWNABLESYNCHRONIZER_OBJECT:
 		case GC_ObjectModel::SCAN_CLASS_OBJECT:
 		case GC_ObjectModel::SCAN_CLASSLOADER_OBJECT:
+            if (GC_ObjectModel::SCAN_CLASS_OBJECT == _extensions->objectModel.getScanType(objectPtr)) {
+                    Trc_MM_MarkingDelegate_getObjectScanner_scanClassObject(env->getLanguageVMThread(), objectPtr);
+            }
 			objectScanner = GC_MixedObjectScanner::newInstance(env, objectPtr, scannerSpace, 0);
 			*sizeToDo = referenceSize + ((GC_MixedObjectScanner *)objectScanner)->getBytesRemaining();
 			break;
@@ -168,7 +171,10 @@ public:
 			/* only mark the class the first time we scan any array, always mark class for mixed/reference objects */
 			if ((NULL != objectScanner) && objectScanner->isHeadObjectScanner()) {
 				/*  Note: this code cloned from MM_MarkingScheme::inlineMarkObjectNoCheck(), inaccessible here */
+				//Trc_MM_MarkingDelegate_getObjectScanner_tryMarkClassObject(env->getLanguageVMThread(), clazz, clazz->classObject);
 				if (_markMap->atomicSetBit(clazz->classObject)) {
+					/// should be called markedClassObject
+					Trc_MM_MarkingDelegate_getObjectScanner_markedClassObject(env->getLanguageVMThread(), clazz, clazz->classObject);
 					/* class object was previously unmarked so push it to workstack */
 					env->_workStack.push(env, (void *)clazz->classObject);
 					env->_markStats._objectsMarked += 1;
