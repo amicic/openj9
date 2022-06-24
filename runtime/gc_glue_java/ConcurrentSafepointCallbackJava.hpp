@@ -42,7 +42,7 @@ class MM_ConcurrentSafepointCallbackJava : public MM_ConcurrentSafepointCallback
 {
 private:
 	intptr_t _asyncEventKey;
-#if defined(AIXPPC) || defined(LINUXPPC)
+#if defined(AIXPPC) || defined(LINUXPPC) || defined(OMR_ARCH_AARCH64)
 	bool _cancelAfterGC;
 #endif /* defined(AIXPPC) || defined(LINUXPPC) */
 protected:
@@ -60,7 +60,7 @@ private:
 
 protected:
 public:
-#if defined(AIXPPC) || defined(LINUXPPC)
+#if defined(AIXPPC) || defined(LINUXPPC) || defined(OMR_ARCH_AARCH64)
 	virtual void registerCallback(MM_EnvironmentBase *env, SafepointCallbackHandler handler, void *userData, bool cancelAfterGC = false);
 #else
 	virtual void registerCallback(MM_EnvironmentBase *env, SafepointCallbackHandler handler, void *userData);
@@ -79,7 +79,7 @@ public:
 	MM_ConcurrentSafepointCallbackJava(MM_EnvironmentBase *env)
 		: MM_ConcurrentSafepointCallback(env)
 		,_asyncEventKey(-1)
-#if defined(AIXPPC) || defined(LINUXPPC)
+#if defined(AIXPPC) || defined(LINUXPPC) || defined(OMR_ARCH_AARCH64)
 		,_cancelAfterGC(false)
 #endif /* defined(AIXPPC) || defined(LINUXPPC) */
 	{

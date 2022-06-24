@@ -48,7 +48,7 @@ MM_ConcurrentSafepointCallbackJava::kill(MM_EnvironmentBase *env)
 		javaVM->internalVMFunctions->J9UnregisterAsyncEvent(javaVM, this->_asyncEventKey);
 	}
 
-#if defined(AIXPPC) || defined(LINUXPPC)
+#if defined(AIXPPC) || defined(LINUXPPC) || defined(OMR_ARCH_AARCH64)
 	if (_cancelAfterGC) {
 		J9HookInterface** mmHooks = J9_HOOK_INTERFACE(env->getExtensions()->omrHookInterface);
 		(*mmHooks)->J9HookUnregister(mmHooks, J9HOOK_MM_OMR_GLOBAL_GC_END, reportGlobalGCComplete, this);
@@ -146,7 +146,7 @@ MM_ConcurrentSafepointCallbackJava::reportGlobalGCComplete(J9HookInterface** hoo
 }
 
 void
-#if defined(AIXPPC) || defined(LINUXPPC)
+#if defined(AIXPPC) || defined(LINUXPPC) || defined(OMR_ARCH_AARCH64)
 MM_ConcurrentSafepointCallbackJava::registerCallback(MM_EnvironmentBase *env, SafepointCallbackHandler handler, void *userData, bool cancelAfterGC)
 #else
 MM_ConcurrentSafepointCallbackJava::registerCallback(MM_EnvironmentBase *env, SafepointCallbackHandler handler, void *userData)
@@ -158,7 +158,7 @@ MM_ConcurrentSafepointCallbackJava::registerCallback(MM_EnvironmentBase *env, Sa
 	_handler = handler;
 	_userData = userData;
 
-#if defined(AIXPPC) || defined(LINUXPPC)
+#if defined(AIXPPC) || defined(LINUXPPC) || defined(OMR_ARCH_AARCH64)
 	_cancelAfterGC = cancelAfterGC;
 	if (_cancelAfterGC) {
 		/* Register hook for global GC end. */
