@@ -37,6 +37,7 @@
 static void
 tgcAllocationPrintStats(OMR_VMThread* omrVMThread)
 {
+	MM_EnvironmentBase *env = MM_EnvironmentBase::getEnvironment(omrVMThread);
 	MM_GCExtensions *ext = MM_GCExtensions::getExtensions(omrVMThread);
 	MM_TgcExtensions *tgcExtensions = MM_TgcExtensions::getExtensions(ext);
 
@@ -58,6 +59,21 @@ tgcAllocationPrintStats(OMR_VMThread* omrVMThread)
 #endif /* defined (J9VM_GC_THREAD_LOCAL_HEAP) */
 	tgcExtensions->printf("Normal Allocated Count:        %12zu\n", allocStats->_allocationCount);
 	tgcExtensions->printf("Normal Allocated Bytes:        %12zu\n", allocStats->_allocationBytes);
+
+	GC_OMRVMThreadListIterator threadListIterator(env->getOmrVM());
+	OMR_VMThread *walkOmrVMThread = NULL;
+
+	while ((walkOmrVMThread = threadListIterator.nextOMRVMThread()) != NULL) {
+		MM_EnvironmentBase *walkEnv = MM_EnvironmentBase::getEnvironment(walkOmrVMThread);
+		MM_TLHAllocationInterface *walkInterface = (MM_TLHAllocationInterface *)walkEnv->_objectAllocationInterface;
+		MM_AllocationStats *walkStats = walkInterface->getAllocationStats();
+
+
+		tgcExtensions->printf("%s omr id %p TLH refresh/remaining %zu/%zu\n", getOMRVMThreadName(omrVMThread), omrVMThread,
+				walkInterface->_tlhAllocationSupport.getRefreshSize(walkEnv), walkInterface->_tlhAllocationSupport.getSize(walkEnv));
+
+		releaseOMRVMThreadName(omrVMThread);
+	}
 }
 
 static void
