@@ -63,6 +63,8 @@ extern void initializeVerboseFunctionTableWithDummies(J9MemoryManagerVerboseInte
 void
 allocateZeroedTLHPages(J9JavaVM *javaVM, UDATA flag)
 {
+	PORT_ACCESS_FROM_JAVAVM(javaVM);
+	j9tty_printf(PORTLIB, "allocateZeroedTLHPages %zu\n", flag);
 	MM_GCExtensions::getExtensions(javaVM)->batchClearTLH = (flag != 0) ? 1 : 0;
 }
 
