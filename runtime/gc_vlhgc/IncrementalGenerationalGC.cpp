@@ -524,6 +524,7 @@ bool
 MM_IncrementalGenerationalGC::internalGarbageCollect(MM_EnvironmentBase *env, MM_MemorySubSpace *subSpace, MM_AllocateDescription *allocDescription)
 {
 	MM_EnvironmentVLHGC *envVLHGC = MM_EnvironmentVLHGC::getEnvironment(env);
+	OMRPORT_ACCESS_FROM_ENVIRONMENT(env);
 	
 	_extensions->globalVLHGCStats.gcCount += 1;
 
@@ -534,6 +535,8 @@ MM_IncrementalGenerationalGC::internalGarbageCollect(MM_EnvironmentBase *env, MM
 	}
 
 	bool didAttemptCollect = _mainGCThread.garbageCollect(envVLHGC, static_cast<MM_AllocateDescription*>(allocDescription));
+
+	omrtty_printf("MM_IncrementalGenerationalGC::internalGarbageCollect didAttemptCollect %zu\n", (uintptr_t)didAttemptCollect);
 
 	env->_cycleState->_activeSubSpace = NULL;
 
