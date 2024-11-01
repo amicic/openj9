@@ -56,7 +56,7 @@
 
 #define HEAP_FREE_RATIO_EXPAND_DIVISOR		100
 #define HEAP_FREE_RATIO_EXPAND_MULTIPLIER	17
-#define GMP_OVERHEAD_WEIGHT					0.4
+#define HYBRID_PGC_OVERHEAD_WEIGHT			0.4
 
 /**
  * Return the memory pool associated to the receiver.
@@ -1071,13 +1071,14 @@ double
 MM_MemorySubSpaceTarok::calculateHybridHeapOverhead(MM_EnvironmentBase *env, intptr_t heapChange)
 {
 	double gcPercentage = calculateGcPctForHeapChange(env, heapChange);
-	double freeMemComponant = mapMemoryPercentageToGcOverhead(env, heapChange);
+	double freeMemComponent = mapMemoryPercentageToGcOverhead(env, heapChange);
 
-	if (0 == heapChange) {
+//	if (0 == heapChange) {
+	if (true) {
 		/* Do not trigger this tracepoint for heapChange != 0, since this function is run dozens of time when changing heap size */
-		Trc_MM_MemorySubSpaceTarok_calculateHybridHeapOverhead(env->getLanguageVMThread(), gcPercentage, freeMemComponant);
+		Trc_MM_MemorySubSpaceTarok_calculateHybridHeapOverhead(env->getLanguageVMThread(), gcPercentage, freeMemComponent);
 	}
-	return MM_Math::weightedAverage(gcPercentage, freeMemComponant, GMP_OVERHEAD_WEIGHT);
+	return MM_Math::weightedAverage(gcPercentage, freeMemComponent, HYBRID_PGC_OVERHEAD_WEIGHT);
 }
 
 double MM_MemorySubSpaceTarok::mapMemoryPercentageToGcOverhead(MM_EnvironmentBase *env, intptr_t heapSizeChange)
