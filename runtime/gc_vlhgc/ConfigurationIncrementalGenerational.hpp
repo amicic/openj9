@@ -39,6 +39,7 @@ class MM_HeapRegionManager;
 class MM_MemoryPool;
 class MM_MemorySubSpaceTarok;
 
+#define TAROK_MINIMUM_REGION_SIZE_BYTES (128 * 1024)
 
 class MM_ConfigurationIncrementalGenerational : public MM_Configuration
 {
@@ -46,7 +47,7 @@ class MM_ConfigurationIncrementalGenerational : public MM_Configuration
 public:
 protected:
 private:
-	static const uintptr_t _tarokMinimumRegionSizeInBytes = (512 * 1024);
+	static const uintptr_t _tarokMinimumRegionSizeInBytes = TAROK_MINIMUM_REGION_SIZE_BYTES;
 
 /* Methods */
 public:
@@ -109,16 +110,22 @@ private:
 	static UDATA
 	calculateDefaultRegionSize(MM_EnvironmentBase *env)
 	{
+		OMRPORT_ACCESS_FROM_ENVIRONMENT(env);
+
 		UDATA regionSize = 0;
 
 		MM_GCExtensionsBase *extensions = env->getExtensions();
-		UDATA regionCount = extensions->memoryMax / _tarokMinimumRegionSizeInBytes;
-		/* try to select region size such that the resulting region count is in the range of [1024, 2048] */
-		if (regionCount < 1024 || regionCount > 2048) {
-			regionSize = OMR_MAX(extensions->memoryMax / 1024, _tarokMinimumRegionSizeInBytes);
-		} else {
+//		UDATA regionCount = extensions->memoryMax / _tarokMinimumRegionSizeInBytes;
+//		/* try to select region size such that the resulting region count is in the range of [1024, 2048] */
+//		if (regionCount < (4 * 1024) || regionCount > (4 * 2048)) {
+//			regionSize = OMR_MAX(extensions->memoryMax / (4 * 1024), _tarokMinimumRegionSizeInBytes);
+//		} else
+		{
 			regionSize = _tarokMinimumRegionSizeInBytes;
 		}
+
+		omrtty_printf("calculateDefaultRegionSize size %zu count %zu\n", regionSize, extensions->memoryMax / _tarokMinimumRegionSizeInBytes);
+
 
 		return regionSize;
 	}
