@@ -56,7 +56,6 @@
 #include "SweepPoolManagerVLHGC.hpp"
 #include  "SparseVirtualMemory.hpp"
 
-#define TAROK_MINIMUM_REGION_SIZE_BYTES (512 * 1024)
 
 MM_Configuration *
 MM_ConfigurationIncrementalGenerational::newInstance(MM_EnvironmentBase *env)
