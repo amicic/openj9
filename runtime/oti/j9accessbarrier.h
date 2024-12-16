@@ -113,6 +113,7 @@ typedef struct J9IndexableObject* mm_j9array_t;
 		? (&(((elemType*)J9_CONVERT_POINTER_FROM_TOKEN_VM__(javaVM, ((U_32*)(((UDATA)(array)) + (javaVM)->discontiguousIndexableHeaderSize))[((U_32)index)/((javaVM)->arrayletLeafSize/sizeof(elemType))]))[((U_32)index)%((javaVM)->arrayletLeafSize/sizeof(elemType))])) \
 		: (&(((elemType*)(((UDATA*)(((UDATA)(array)) + (javaVM)->discontiguousIndexableHeaderSize))[((U_32)index)/((javaVM)->arrayletLeafSize/sizeof(elemType))]))[((U_32)index)%((javaVM)->arrayletLeafSize/sizeof(elemType))])))
 
+#if 0
 #define J9JAVAARRAYCONTIGUOUS_BASE_EA(vmThread, array, index, elemType) \
 	(J9VMTHREAD_COMPRESS_OBJECT_REFERENCES(vmThread) \
 		? (&((elemType*)((((J9IndexableObjectContiguousCompressed *)(array)) + 1)))[index]) \
@@ -122,6 +123,13 @@ typedef struct J9IndexableObject* mm_j9array_t;
 	(J9JAVAVM_COMPRESS_OBJECT_REFERENCES(javaVM) \
 		? (&((elemType*)((((J9IndexableObjectContiguousCompressed *)(array)) + 1)))[index]) \
 		: (&((elemType*)((((J9IndexableObjectContiguousFull *)(array)) + 1)))[index]))
+#else
+#define J9JAVAARRAYCONTIGUOUS_BASE_EA(vmThread, array, index, elemType) \
+	(&((elemType*)((((UDATA)(array)) + (vmThread)->contiguousIndexableHeaderSize)))[(index)])
+
+#define J9JAVAARRAYCONTIGUOUS_BASE_EA_VM(javaVM, array, index, elemType) \
+	(&((elemType*)((((UDATA)(array)) + (javaVM)->contiguousIndexableHeaderSize)))[(index)])
+#endif
 
 #if defined(J9VM_ENV_DATA64)
 #define J9JAVAARRAYCONTIGUOUS_WITH_DATAADDRESS_VIRTUALLARGEOBJECTHEAPDISABLED_EA(vmThread, array, index, elemType) \
@@ -144,6 +152,7 @@ typedef struct J9IndexableObject* mm_j9array_t;
 		? (&((elemType*)((((J9IndexableObjectWithDataAddressContiguousCompressed *)(array))->dataAddr)))[index]) \
 		: (&((elemType*)((((J9IndexableObjectWithDataAddressContiguousFull *)(array))->dataAddr)))[index]))
 
+#if 0
 #define J9JAVAARRAYCONTIGUOUS_EA(vmThread, array, index, elemType) \
 	(((vmThread)->isIndexableDataAddrPresent) \
 		? (((vmThread)->isVirtualLargeObjectHeapEnabled) \
@@ -157,6 +166,21 @@ typedef struct J9IndexableObject* mm_j9array_t;
 				? J9JAVAARRAYCONTIGUOUS_WITH_DATAADDRESS_VIRTUALLARGEOBJECTHEAPENABLED_EA_VM(javaVM, array, index, elemType) \
 				: J9JAVAARRAYCONTIGUOUS_WITH_DATAADDRESS_VIRTUALLARGEOBJECTHEAPDISABLED_EA_VM(javaVM, array, index, elemType)) \
 		: J9JAVAARRAYCONTIGUOUS_BASE_EA_VM(javaVM, array, index, elemType))
+#else
+#define J9JAVAARRAYCONTIGUOUS_EA(vmThread, array, index, elemType) \
+	(!(vmThread)->isIndexableDataAddrPresent) \
+		? J9JAVAARRAYCONTIGUOUS_BASE_EA(vmThread, array, index, elemType) \
+		: (((vmThread)->isVirtualLargeObjectHeapEnabled) \
+				? J9JAVAARRAYCONTIGUOUS_WITH_DATAADDRESS_VIRTUALLARGEOBJECTHEAPENABLED_EA(vmThread, array, index, elemType) \
+				: J9JAVAARRAYCONTIGUOUS_WITH_DATAADDRESS_VIRTUALLARGEOBJECTHEAPDISABLED_EA(vmThread, array, index, elemType))
+
+#define J9JAVAARRAYCONTIGUOUS_EA_VM(javaVM, array, index, elemType) \
+	(!(javaVM)->isIndexableDataAddrPresent) \
+		? J9JAVAARRAYCONTIGUOUS_BASE_EA_VM(javaVM, array, index, elemType) \
+		: (((javaVM)->isVirtualLargeObjectHeapEnabled) \
+				? J9JAVAARRAYCONTIGUOUS_WITH_DATAADDRESS_VIRTUALLARGEOBJECTHEAPENABLED_EA_VM(javaVM, array, index, elemType) \
+				: J9JAVAARRAYCONTIGUOUS_WITH_DATAADDRESS_VIRTUALLARGEOBJECTHEAPDISABLED_EA_VM(javaVM, array, index, elemType))
+#endif
 
 #else /* defined(J9VM_ENV_DATA64) */
 #define J9JAVAARRAYCONTIGUOUS_EA(vmThread, array, index, elemType) \
@@ -178,8 +202,12 @@ typedef struct J9IndexableObject* mm_j9array_t;
 		: (0 != ((J9IndexableObjectContiguousFull *)(array))->size))
 
 /* TODO: queries compressed twice - optimize? */
+/*
 #define J9JAVAARRAY_EA(vmThread, array, index, elemType) (J9ISCONTIGUOUSARRAY(vmThread, array) ? J9JAVAARRAYCONTIGUOUS_EA(vmThread, array, index, elemType) : J9JAVAARRAYDISCONTIGUOUS_EA(vmThread, array, index, elemType))
 #define J9JAVAARRAY_EA_VM(javaVM, array, index, elemType) (J9ISCONTIGUOUSARRAY_VM(javaVM, array) ? J9JAVAARRAYCONTIGUOUS_EA_VM(javaVM, array, index, elemType) : J9JAVAARRAYDISCONTIGUOUS_EA_VM(javaVM, array, index, elemType))
+*/
+#define J9JAVAARRAY_EA(vmThread, array, index, elemType) (J9JAVAARRAYCONTIGUOUS_EA(vmThread, array, index, elemType))
+#define J9JAVAARRAY_EA_VM(javaVM, array, index, elemType) (J9JAVAARRAYCONTIGUOUS_EA_VM(javaVM, array, index, elemType))
 
 /*
  * Private helpers for reference field types
