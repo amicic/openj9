@@ -161,14 +161,12 @@ typedef struct J9IndexableObject* mm_j9array_t;
  * 		else
  * 			discontiguous
  */
-#define J9JAVAARRAY_EA(vmThread, array, index, elemType) \
-	((J9IndexableObjectLayout_NoDataAddr_NoArraylet == (vmThread)->indexableObjectLayout) \
-		? J9JAVAARRAYCONTIGUOUS_BASE_EA(vmThread, array, index, elemType) \
-		: ((J9IndexableObjectLayout_DataAddr_NoArraylet == (vmThread)->indexableObjectLayout) \
-			? J9JAVAARRAYCONTIGUOUS_WITH_DATAADDRESS_VIRTUALLARGEOBJECTHEAPENABLED_EA(vmThread, array, index, elemType) \
-			: (J9ISCONTIGUOUSARRAY(vmThread, array) \
-				? J9JAVAARRAYCONTIGUOUS_EA(vmThread, array, index, elemType) \
-				: J9JAVAARRAYDISCONTIGUOUS_EA(vmThread, array, index, elemType))))
+
+
+
+/* There are lots of callers of this macro passing index as UDATA?! While callers keeping index in UDATA is probably overkill,
+ * we simply explicitly cast down to U_32 (what C helpers use) to avoid compiler loss of precision warning */
+#define J9JAVAARRAY_EA(vmThread, array, index, elemType) j9javaArray_##elemType##_EA(vmThread, (J9IndexableObject *)array, (U_32)index)
 
 #define J9JAVAARRAY_EA_VM(javaVM, array, index, elemType) \
 	((J9IndexableObjectLayout_NoDataAddr_NoArraylet == (javaVM)->indexableObjectLayout) \
