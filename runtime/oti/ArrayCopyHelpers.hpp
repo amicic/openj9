@@ -479,6 +479,8 @@ private:
 	static VMINLINE void
 	memcpyToOrFromArrayDiscontiguous(J9VMThread *currentThread, j9object_t array, UDATA index, UDATA count, void *nativePtr, UDATA logElementSize, bool from)
 	{
+		PORT_ACCESS_FROM_VMC(currentThread);
+		j9tty_printf(PORTLIB, "memcpyToOrFromArrayDiscontiguous array %p index %zu count %zu\n", array, index, count);
 		UDATA elementsToCopy = count;
 		UDATA arrayIndex = index;
 		void *nativeAddress = nativePtr;
