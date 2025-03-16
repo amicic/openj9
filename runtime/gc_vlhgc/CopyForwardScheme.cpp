@@ -267,7 +267,9 @@ MM_CopyForwardScheme::initialize(MM_EnvironmentVLHGC *env)
 	uintptr_t minCacheCount = threadCount * cachesPerThread;
 	
 	/* Estimate how many caches we might need to describe the entire heap */
-	uintptr_t heapCaches = extensions->memoryMax / extensions->scavengerScanCacheMaximumSize;
+	//uintptr_t heapCaches = extensions->memoryMax / extensions->scavengerScanCacheMaximumSize;
+
+	uintptr_t heapCaches = minCacheCount;
 
 	/* use whichever value is higher */
 	uintptr_t totalCacheCount = OMR_MAX(minCacheCount, heapCaches);
