@@ -876,6 +876,11 @@ MM_ScavengerDelegate::signalThreadsToFlushCaches(MM_EnvironmentBase *currentEnvB
 	J9InternalVMFunctions const * const vmFuncs = _javaVM->internalVMFunctions;
 	J9VMThread *walkThread = NULL;
 
+	OMRPORT_ACCESS_FROM_ENVIRONMENT(currentEnvBase);
+	omrtty_printf("signalThreadsToFlushCaches env ID %zu\n", currentEnvBase->getEnvironmentId());
+	//				omrtty_printf("signalThreadsToFlushCaches env ID %zu flipBytes %zu\n", walkEnv->getEnvironmentId(), walkEnv->_scavengerStats._flipBytes);
+
+
 	GC_VMInterface::lockVMThreadList(_extensions);
 
 	GC_VMThreadListIterator vmThreadListIterator(_javaVM);

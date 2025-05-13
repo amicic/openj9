@@ -36,6 +36,7 @@
 #include "ReferenceObjectBufferRealtime.hpp"
 #include "ReferenceObjectBufferStandard.hpp"
 #include "ReferenceObjectBufferVLHGC.hpp"
+#include "ScavengerStats.hpp"
 #include "SublistFragment.hpp"
 #include "UnfinalizedObjectBufferRealtime.hpp"
 #include "UnfinalizedObjectBufferStandard.hpp"
@@ -151,6 +152,10 @@ MM_EnvironmentDelegate::detachVMThread(OMR_VM *omrVM, OMR_VMThread *omrThread, u
 void
 MM_EnvironmentDelegate::flushNonAllocationCaches()
 {
+	OMRPORT_ACCESS_FROM_ENVIRONMENT(_env);
+
+	omrtty_printf("flushNonAllocationCaches env ID %zu flipBytes %zu\n", _env->getEnvironmentId(), _env->_scavengerStats._flipBytes);
+
 #if defined(J9VM_GC_GENERATIONAL)
 	if (_env->getExtensions()->isStandardGC()) {
 		MM_SublistFragment::flush((J9VMGC_SublistFragment*)&_vmThread->gcRememberedSet);

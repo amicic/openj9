@@ -44,6 +44,7 @@
 #include "HeapRegionManager.hpp"
 #include "JNICriticalRegion.hpp"
 #include "ObjectModel.hpp"
+#include "MemorySubSpaceSemiSpace.hpp"
 #include "Scavenger.hpp"
 #include "SublistFragment.hpp"
 
@@ -782,7 +783,9 @@ MM_StandardAccessBarrier::preObjectRead(J9VMThread *vmThread, J9Class *srcClass,
 }
 
 
-#define GLOBAL_READ_BARRIR_STATS_UPDATE_THRESHOLD 32
+#define GLOBAL_READ_BARRIR_STATS_UPDATE_COUNT_THRESHOLD 64
+#define GLOBAL_READ_BARRIR_STATS_UPDATE_BYTES_THRESHOLD (64 * 1024)
+
 
 bool
 MM_StandardAccessBarrier::preObjectRead(J9VMThread *vmThread, J9Object *srcObject, fj9object_t *srcAddress)
@@ -804,7 +807,7 @@ MM_StandardAccessBarrier::preObjectRead(J9VMThread *vmThread, J9Object *srcObjec
 			 */
 
 			env->_scavengerStats._readObjectBarrierUpdate += 1;
-			if (GLOBAL_READ_BARRIR_STATS_UPDATE_THRESHOLD == env->_scavengerStats._readObjectBarrierUpdate) {
+			if (GLOBAL_READ_BARRIR_STATS_UPDATE_COUNT_THRESHOLD == env->_scavengerStats._readObjectBarrierUpdate) {
 				MM_AtomicOperations::addU64(&_extensions->scavengerStats._readObjectBarrierUpdate, GLOBAL_READ_BARRIR_STATS_UPDATE_THRESHOLD);
 				env->_scavengerStats._readObjectBarrierUpdate = 0;
 			}
@@ -836,9 +839,56 @@ MM_StandardAccessBarrier::preObjectRead(J9VMThread *vmThread, J9Object *srcObjec
 					slotObject.atomicWriteReferenceToSlot(object, destinationObjectPtr);
 
 					env->_scavengerStats._readObjectBarrierCopy += 1;
-					if (GLOBAL_READ_BARRIR_STATS_UPDATE_THRESHOLD == env->_scavengerStats._readObjectBarrierCopy) {
+					if (GLOBAL_READ_BARRIR_STATS_UPDATE_COUNT_THRESHOLD == env->_scavengerStats._readObjectBarrierCopy) {
 						MM_AtomicOperations::addU64(&_extensions->scavengerStats._readObjectBarrierCopy, GLOBAL_READ_BARRIR_STATS_UPDATE_THRESHOLD);
 						env->_scavengerStats._readObjectBarrierCopy = 0;
+					}
+
+					if (env->_scavengerStats._flipBytes > GLOBAL_READ_BARRIR_STATS_UPDATE_BYTES_THRESHOLD) {
+						OMRPORT_ACCESS_FROM_ENVIRONMENT(env);
+
+						uintptr_t freeMemory = _scavenger->_activeSubSpace->getMemorySubSpaceAllocate()->getApproximateActiveFreeMemorySize();
+						uintptr_t totalMemory = _scavenger->_activeSubSpace->getMemorySubSpaceAllocate()->getActiveMemorySize();
+
+						uintptr_t *flipBytes = &_extensions->incrementScavengerStats._readObjectBarrierFlipBytes;
+						MM_AtomicOperations::add(flipBytes, env->_scavengerStats._flipBytes);
+
+						omrtty_printf("preObjectRead env ID %zu free/total mem %zu/%zu bytes %zu%% flipped local/global %zu/%zu bytes %zu%% of total mem %zu%% of average flipped %zu\n",
+								env->getEnvironmentId(),
+								freeMemory,
+								totalMemory,
+								freeMemory / (totalMemory / 100),
+								env->_scavengerStats._flipBytes,
+								*flipBytes,
+								*flipBytes / (totalMemory / 100),
+								*flipBytes / (_scavenger->_averageFlipBytes / 100),
+								_scavenger->_averageFlipBytes);
+
+
+						env->_scavengerStats._flipBytes = 0;
+
+					}
+
+					if (env->_scavengerStats._tenureAggregateBytes > GLOBAL_READ_BARRIR_STATS_UPDATE_BYTES_THRESHOLD) {
+						OMRPORT_ACCESS_FROM_ENVIRONMENT(env);
+
+						uintptr_t freeMemory = _scavenger->_activeSubSpace->getMemorySubSpaceAllocate()->getApproximateActiveFreeMemorySize();
+						uintptr_t totalMemory = _scavenger->_activeSubSpace->getMemorySubSpaceAllocate()->getActiveMemorySize();
+
+						uintptr_t *tenureBytes = &_extensions->incrementScavengerStats._readObjectBarrierTenureBytes;
+						MM_AtomicOperations::add(tenureBytes, env->_scavengerStats._tenureAggregateBytes);
+
+						omrtty_printf("preObjectRead env ID %zu free/total mem %zu/%zu bytes %zu%% tenure local/global %zu/%zu bytes %zu%% of total mem\n",
+								env->getEnvironmentId(),
+								freeMemory,
+								totalMemory,
+								freeMemory / (totalMemory / 100),
+								env->_scavengerStats._tenureAggregateBytes,
+								*tenureBytes,
+								*tenureBytes / (totalMemory / 100));
+
+						env->_scavengerStats._tenureAggregateBytes = 0;
+
 					}
 				}
 			}
