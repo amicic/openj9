@@ -129,6 +129,11 @@ public:
 	{
 		return _breadthFirstCopyForwardScheme->isConcurrentCycleInProgress();
 	}
+
+	MMINLINE void overflowRaised() {
+		_breadthFirstCopyForwardScheme->overflowRaised();
+	}
+
 };
 
 

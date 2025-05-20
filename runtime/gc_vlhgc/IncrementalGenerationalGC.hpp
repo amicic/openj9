@@ -403,6 +403,14 @@ public:
 	 */
 	virtual void forceConcurrentFinish();
 
+	void overflowRaised(MM_EnvironmentBase *env) {
+		if (MM_CycleState::CT_PARTIAL_GARBAGE_COLLECTION == env->_cycleState->_collectionType) {
+			_copyForwardDelegate.overflowRaised();
+		} else {
+			//Assert_MM_unreachable();
+		}
+	}
+
 	/**
 	 * perform initializing before Main thread startup or first non gcthread garbage collection
 	 * @param env[in] the current thread

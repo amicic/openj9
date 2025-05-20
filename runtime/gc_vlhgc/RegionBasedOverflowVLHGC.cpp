@@ -26,6 +26,7 @@
 
 #include "RegionBasedOverflowVLHGC.hpp"
 
+#include "IncrementalGenerationalGC.hpp"
 #include "CycleState.hpp"
 #include "EnvironmentBase.hpp"
 #include "GCExtensions.hpp"
@@ -97,17 +98,27 @@ MM_RegionBasedOverflowVLHGC::tearDown(MM_EnvironmentBase *env)
 void
 MM_RegionBasedOverflowVLHGC::emptyToOverflow(MM_EnvironmentBase *env, MM_Packet *packet, MM_OverflowType type)
 {
+	OMRPORT_ACCESS_FROM_ENVIRONMENT(env);
+
 	MM_EnvironmentVLHGC *envVLHGC = MM_EnvironmentVLHGC::getEnvironment(env);
 	void *objectPtr = NULL;
-
-	_overflow = true;
 	
+	if (!_overflow) {
+		omrtty_printf("emptyToOverflow worker %zu\n", env->getWorkerID());
+
+		((MM_IncrementalGenerationalGC *)_extensions->getGlobalCollector())->overflowRaised(env);
+
+		/* Ensure that other CPUs see correct _overflowDoneIndex, by the time they see _overflow is set */
+		MM_AtomicOperations::writeBarrier();
+		_overflow = true;
+	}
+
 	envVLHGC->_workPacketStats.setSTWWorkStackOverflowOccured(true);
 	envVLHGC->_workPacketStats.incrementSTWWorkStackOverflowCount();
 	envVLHGC->_workPacketStats.setSTWWorkpacketCountAtOverflow(_workPackets->getActivePacketCount());
 	
 	/* Empty the current packet by overflowing its regions now */
-	while(NULL != (objectPtr = packet->pop(envVLHGC))) {
+	while (NULL != (objectPtr = packet->pop(envVLHGC))) {
 		overflowItemInternal(envVLHGC, objectPtr, type);
 	}
 	Assert_MM_true(packet->isEmpty());
@@ -125,9 +136,18 @@ MM_RegionBasedOverflowVLHGC::emptyToOverflow(MM_EnvironmentBase *env, MM_Packet 
 void
 MM_RegionBasedOverflowVLHGC::overflowItem(MM_EnvironmentBase *env, void *item, MM_OverflowType type)
 {
+	OMRPORT_ACCESS_FROM_ENVIRONMENT(env);
 	MM_EnvironmentVLHGC *envVLHGC = MM_EnvironmentVLHGC::getEnvironment(env);
-	_overflow = true;
 	
+	if (!_overflow) {
+		omrtty_printf("overflowItem worker %zu\n", env->getWorkerID());
+
+		((MM_IncrementalGenerationalGC *)_extensions->getGlobalCollector())->overflowRaised(env);
+		/* Ensure that other CPUs see correct _overflowDoneIndex, by the time they see _overflow is set */
+		MM_AtomicOperations::writeBarrier();
+		_overflow = true;
+	}
+
 	envVLHGC->_workPacketStats.setSTWWorkStackOverflowOccured(true);
 	envVLHGC->_workPacketStats.incrementSTWWorkStackOverflowCount();
 	envVLHGC->_workPacketStats.setSTWWorkpacketCountAtOverflow(_workPackets->getActivePacketCount());

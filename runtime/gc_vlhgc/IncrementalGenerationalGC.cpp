@@ -1722,6 +1722,7 @@ MM_IncrementalGenerationalGC::verifyMarkMapClosure(MM_EnvironmentVLHGC *env, MM_
 {
 	Assert_MM_true(NULL != markMap);
 	Assert_MM_true(_extensions->fvtest_tarokVerifyMarkMapClosure);
+	OMRPORT_ACCESS_FROM_ENVIRONMENT(env);
 	
 	GC_HeapRegionIteratorVLHGC regionIterator(_regionManager);
 	MM_HeapRegionDescriptorVLHGC *region = NULL;
@@ -1747,6 +1748,7 @@ MM_IncrementalGenerationalGC::verifyMarkMapClosure(MM_EnvironmentVLHGC *env, MM_
 					/* fall through */
 				case GC_ObjectModel::SCAN_MIXED_OBJECT_LINKED:
 				case GC_ObjectModel::SCAN_ATOMIC_MARKABLE_REFERENCE_OBJECT:
+				case GC_ObjectModel::SCAN_OWNABLESYNCHRONIZER_OBJECT:
 				case GC_ObjectModel::SCAN_MIXED_OBJECT:
 				case GC_ObjectModel::SCAN_CLASS_OBJECT:
 				case GC_ObjectModel::SCAN_CLASSLOADER_OBJECT:
@@ -1780,6 +1782,7 @@ MM_IncrementalGenerationalGC::verifyMarkMapClosure(MM_EnvironmentVLHGC *env, MM_
 					/* nothing to do */
 					break;
 				default:
+					omrtty_printf("verifyMarkMapClosure scan type %zu\n", _extensions->objectModel.getScanType(object));
 					Assert_MM_unreachable();
 				}
 			}

@@ -173,6 +173,7 @@ MM_CopyForwardScheme::MM_CopyForwardScheme(MM_EnvironmentVLHGC *env, MM_HeapRegi
 	, _heapTop(NULL)
 	, _abortFlag(false)
 	, _abortInProgress(false)
+	, _overflowDoneIndex(-1)
 	, _regionCountCannotBeEvacuated(0)
 	, _regionCountReservedNonEvacuated(0)
 	, _cacheLineAlignment(0)
@@ -1456,6 +1457,7 @@ MM_CopyForwardScheme::mainSetupForCopyForward(MM_EnvironmentVLHGC *env)
 	
 	/* Reinitialize the _doneIndex */
 	_doneIndex = 0;
+	_overflowDoneIndex = -1;
 
 	/* Context 0 is currently our "common destination context" */
 	_commonContext = (MM_AllocationContextTarok *)_extensions->globalAllocationManager->getAllocationContextByIndex(0);
@@ -2311,17 +2313,14 @@ MM_CopyForwardScheme::updateMarkMapAndCardTableOnCopy(MM_EnvironmentVLHGC *env, 
 MMINLINE void
 MM_CopyForwardScheme::scanOwnableSynchronizerObjectSlots(MM_EnvironmentVLHGC *env, MM_AllocationContextTarok *reservingContext, J9Object *objectPtr, ScanReason reason)
 {
-	/*
-	 * If object has been scanned without triggering abort add it to the list.
-	 * If object scan has triggered abort, it is added to work packet
-	 * and it is going to be rescanned again. It should not be added to the list
-	 * in the case of abort to prevent duplication during second scan.
-	 */
-	if (scanMixedObjectSlots(env, reservingContext, objectPtr, reason)) {
-		if ((SCAN_REASON_COPYSCANCACHE == reason) || (SCAN_REASON_PACKET == reason)) {
+	if (SCAN_REASON_COPYSCANCACHE == reason) {
+		addOwnableSynchronizerObjectInList(env, objectPtr);
+	} else if (SCAN_REASON_PACKET == reason) {
+		if (isObjectInEvacuateMemoryNoCheck(objectPtr)) {
 			addOwnableSynchronizerObjectInList(env, objectPtr);
 		}
 	}
+	scanMixedObjectSlots(env, reservingContext, objectPtr, reason);
 }
 
 void
@@ -2472,7 +2471,7 @@ MM_CopyForwardScheme::iterateAndCopyforwardSlotReference(MM_EnvironmentVLHGC *en
 	return success;
 }
 
-bool
+void
 MM_CopyForwardScheme::scanMixedObjectSlots(MM_EnvironmentVLHGC *env, MM_AllocationContextTarok *reservingContext, J9Object *objectPtr, ScanReason reason)
 {
 	if (_tracingEnabled) {
@@ -2488,7 +2487,6 @@ MM_CopyForwardScheme::scanMixedObjectSlots(MM_EnvironmentVLHGC *env, MM_Allocati
 	}
 
 	updateScanStats(env, objectPtr, reason);
-	return success;
 }
 
 void
@@ -3385,14 +3383,22 @@ MM_CopyForwardScheme::isWorkPacketsOverflow(MM_EnvironmentVLHGC *env)
 }
 
 bool
-MM_CopyForwardScheme::handleOverflow(MM_EnvironmentVLHGC *env)
+MM_CopyForwardScheme::handleOverflow(MM_EnvironmentVLHGC *env, uintptr_t doneIndex)
 {
+	OMRPORT_ACCESS_FROM_ENVIRONMENT(env);
+
 	MM_WorkPackets *packets = (MM_WorkPackets *)(env->_cycleState->_workPackets);
 	bool result = false;
 
-	if (packets->getOverflowFlag()) {
+	omrtty_printf("handleOverflow ENTER worker %zu doneIndex %zu _overflowDoneIndex %zu\n", env->getWorkerID(), doneIndex, _overflowDoneIndex);
+
+
+	if (packets->getOverflowFlag() && (doneIndex == _overflowDoneIndex)) {
+		omrtty_printf("handleOverflow worker %zu handleOverflow overflow flag\n", env->getWorkerID());
+
 		result = true;
-		if (((MM_CopyForwardSchemeTask*)env->_currentTask)->synchronizeGCThreadsAndReleaseMainForMark(env, UNIQUE_ID)) {
+		if (((MM_CopyForwardSchemeTask *)env->_currentTask)->synchronizeGCThreadsAndReleaseMainForMark(env, UNIQUE_ID)) {
+			omrtty_printf("handleOverflow worker %zu handleOverflow clear overflow flag; filling up queues (may again overflow) _doneIndex %zu\n", env->getWorkerID(), _doneIndex);
 			packets->clearOverflowFlag();
 			env->_currentTask->releaseSynchronizedGCThreads(env);
 		}
@@ -3407,19 +3413,32 @@ MM_CopyForwardScheme::handleOverflow(MM_EnvironmentVLHGC *env)
 				}
 			}
 		}
-		((MM_CopyForwardSchemeTask*)env->_currentTask)->synchronizeGCThreadsForMark(env, UNIQUE_ID);
+		omrtty_printf("handleOverflow EXIT worker %zu handleOverflow overflow flag before sync %zu\n", env->getWorkerID(), (uintptr_t)packets->getOverflowFlag());
+
+		((MM_CopyForwardSchemeTask *)env->_currentTask)->synchronizeGCThreadsForMark(env, UNIQUE_ID);
+	} else {
+		omrtty_printf("handleOverflow EXIT worker %zu handleOverflow  overflow flag %zu doneIndex %zu %zu\n", env->getWorkerID(), (uintptr_t)packets->getOverflowFlag(), doneIndex, _overflowDoneIndex);
 	}
+
 	return result;
 }
 
 void
-MM_CopyForwardScheme::completeScanForAbort(MM_EnvironmentVLHGC *env)
+MM_CopyForwardScheme::completeScanForAbort(MM_EnvironmentVLHGC *env, uintptr_t doneIndex)
 {
+	OMRPORT_ACCESS_FROM_ENVIRONMENT(env);
+
+	omrtty_printf("completeScanForAbort ENTER worker %zu\n", env->getWorkerID());
+
 	/* From this point on, no copying should happen - reservingContext is irrelevant */
 	MM_AllocationContextTarok *reservingContext = _commonContext;
 
 	J9Object *objectPtr = NULL;
-	do {
+
+	while (handleOverflow(env, doneIndex)) {
+		doneIndex = _doneIndex;
+		omrtty_printf("completeScanForAbort worker %zu doing real mark work (draining queues, but only local), may overflow _doneIndex %zu\n", env->getWorkerID(), _doneIndex);
+
 		while (NULL != (objectPtr = (J9Object *)env->_workStack.pop(env))) {
 			do {
 				Assert_MM_false(MM_ForwardedHeader(objectPtr, _extensions->compressObjectReferences()).isForwardedPointer());
@@ -3428,8 +3447,15 @@ MM_CopyForwardScheme::completeScanForAbort(MM_EnvironmentVLHGC *env)
 				objectPtr = (J9Object *)env->_workStack.popNoWait(env);
 			} while (NULL != objectPtr);
 		}
-		((MM_CopyForwardSchemeTask*)env->_currentTask)->synchronizeGCThreadsForMark(env, UNIQUE_ID);
-	} while (handleOverflow(env));
+		MM_WorkPackets *packets = (MM_WorkPackets *)(env->_cycleState->_workPackets);
+		omrtty_printf("completeScanForAbort worker %zu finished a round of real work handleOverflow overflow flag before sync %zu _doneIndex %zu\n", env->getWorkerID(), (uintptr_t)packets->getOverflowFlag(), _doneIndex);
+		if (((MM_CopyForwardSchemeTask *)env->_currentTask)->synchronizeGCThreadsAndReleaseMainForMark(env, UNIQUE_ID)) {
+			_doneIndex += 1;
+			omrtty_printf("completeScanForAbort worker %zu new _doneIndex %zu\n", env->getWorkerID(), _doneIndex);
+			env->_currentTask->releaseSynchronizedGCThreads(env);
+		}
+	}
+	omrtty_printf("completeScanForAbort EXIT worker %zu\n", env->getWorkerID());
 }
 
 void
@@ -3447,7 +3473,10 @@ MM_CopyForwardScheme::completeScanWorkPacket(MM_EnvironmentVLHGC *env)
 void
 MM_CopyForwardScheme::completeScan(MM_EnvironmentVLHGC *env)
 {
+	OMRPORT_ACCESS_FROM_ENVIRONMENT(env);
+	omrtty_printf("completeScan ENTER worker %zu _doneIndex %zu _overflowDoneIndex %zu\n", env->getWorkerID(), _doneIndex, _overflowDoneIndex);
 	uintptr_t nodeOfThread = 0;
+	uintptr_t doneIndex = _doneIndex;
 
 	/* if we aren't using NUMA, we don't want to check the thread affinity since we will have only one list of scan caches */
 	if (_extensions->_numaManager.isPhysicalNUMASupported()) {
@@ -3483,18 +3512,23 @@ MM_CopyForwardScheme::completeScan(MM_EnvironmentVLHGC *env)
 
 	if (((MM_CopyForwardSchemeTask*)env->_currentTask)->synchronizeGCThreadsAndReleaseMainForAbort(env, UNIQUE_ID)) {
 		if (abortFlagRaised()) {
+			omrtty_printf("completeScan worker %zu abortFlagRaised\n", env->getWorkerID());
 			_abortInProgress = true;
 		}
 		/* using abort case to handle work packets overflow during copyforwardHybrid */
 		if (!_abortInProgress && (0 != _regionCountCannotBeEvacuated) && isWorkPacketsOverflow(env)) {
+			omrtty_printf("completeScan worker %zu overflow occured in main scan loop _doneIndex %zu _overflowDoneIndex %zu\n", env->getWorkerID(), _doneIndex, _overflowDoneIndex);
 			_abortInProgress = true;
 		}
 		env->_currentTask->releaseSynchronizedGCThreads(env);
 	}
 
 	if (_abortInProgress) {
-		completeScanForAbort(env);
+		completeScanForAbort(env, doneIndex);
 	}
+
+	omrtty_printf("completeScan EXIT worker %zu _doneIndex %zu _overflowDoneIndex %zu\n", env->getWorkerID(), _doneIndex, _overflowDoneIndex);
+
 }
 
 MMINLINE void
@@ -4028,12 +4062,13 @@ private:
 		_copyForwardScheme->completeScan(MM_EnvironmentVLHGC::getEnvironment(env));
 		
 		if (!wasAbortAlreadyInProgress && _copyForwardScheme->_abortInProgress) {
+			uintptr_t doneIndex = _copyForwardScheme->_doneIndex;
 			/* an abort occurred during unfinalized processing: there could be unscanned or unforwarded objects on the finalizable list */
 			if (J9MODRON_HANDLE_NEXT_WORK_UNIT(env)) {
 				/* since we know we're in abort handling mode and won't be copying any of these objects we don't need to synchronize here */
 				_copyForwardScheme->scanFinalizableObjects(MM_EnvironmentVLHGC::getEnvironment(env));
 			}
-			_copyForwardScheme->completeScanForAbort(MM_EnvironmentVLHGC::getEnvironment(env));
+			_copyForwardScheme->completeScanForAbort(MM_EnvironmentVLHGC::getEnvironment(env), doneIndex);
 		}
 		reportScanningEnded(RootScannerEntity_UnfinalizedObjectsComplete);
 		return complete_phase_OK;

@@ -137,6 +137,8 @@ private:
 	volatile bool _abortFlag;  /**< Flag indicating whether the current copy forward cycle should be aborted due to insufficient heap to complete */
 	bool _abortInProgress;  /**< Flag indicating that the copy forward mechanism is now operating in abort mode, which is attempting to secure integrity of the heap to continue execution */
 
+	volatile uintptr_t _overflowDoneIndex; /**< snapshot of _doneIndex, when packet overflow was detected */
+
 	uintptr_t _regionCountCannotBeEvacuated; /**<The number of regions, which can not be copyforward in collectionSet */
 	uintptr_t _regionCountReservedNonEvacuated; /** the number of regions need to set Mark only in order to try to avoid abort case */
 
@@ -322,9 +324,8 @@ private:
 	 * @param reservingContext[in] The context to which we would prefer to copy any objects discovered in this method
 	 * @param objectPtr current object being scanned.
 	 * @param reason to scan (dirty card, packet, scan cache, overflow)
-	 * @return true if all slots have been copied successfully
 	 */
-	bool scanMixedObjectSlots(MM_EnvironmentVLHGC *env, MM_AllocationContextTarok *reservingContext, J9Object *objectPtr, ScanReason reason);
+	void scanMixedObjectSlots(MM_EnvironmentVLHGC *env, MM_AllocationContextTarok *reservingContext, J9Object *objectPtr, ScanReason reason);
 	/**
 	 * Scan the slots of a reference mixed object.
 	 * Copy and forward all relevant slots values found in the object.
@@ -631,7 +632,7 @@ private:
 	 * Complete scanning in Marking fashion (consume&produce on WorkStack)
 	 * @param env[in] The GC thread
 	 */
-	void completeScanForAbort(MM_EnvironmentVLHGC *env);
+	void completeScanForAbort(MM_EnvironmentVLHGC *env, uintptr_t doneIndex);
 	/**
 	 * Rescan all objects in the specified overflowed region.
 	 */
@@ -643,7 +644,7 @@ private:
 	 * @param env[in] The main GC thread
 	 * @return true if overflow flag is set
 	 */
-	bool handleOverflow(MM_EnvironmentVLHGC *env);
+	bool handleOverflow(MM_EnvironmentVLHGC *env, uintptr_t _doneIndex);
 
 	/**
 	 * Check if Work Packets overflow
@@ -1139,6 +1140,10 @@ public:
 	void doContinuationSlot(MM_EnvironmentVLHGC *env, J9Object *fromObject, J9Object **slotPtr, GC_ContinuationSlotIterator *continuationSlotIterator);
 #endif /* JAVA_SPEC_VERSION >= 24 */
 	void doStackSlot(MM_EnvironmentVLHGC *env, J9Object *fromObject, J9Object **slotPtr, J9StackWalkState *walkState, const void *stackLocation);
+
+	void overflowRaised() {
+		_overflowDoneIndex = _doneIndex;
+	}
 
 	friend class MM_CopyForwardGMPCardCleaner;
 	friend class MM_CopyForwardNoGMPCardCleaner;
