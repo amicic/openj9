@@ -97,6 +97,10 @@ MM_OwnableSynchronizerObjectList::addAll(MM_EnvironmentBase* env, j9object_t hea
 	}
 
 	/* detect trivial cases which can inject cycles into the linked list */
+	if (tail == previousHead) {
+		OMRPORT_ACCESS_FROM_ENVIRONMENT(env);
+		omrtty_printf("addAll %p\n", previousHead);
+	}
 	Assert_MM_true( (head != previousHead) && (tail != previousHead) );
 	
 	MM_GCExtensions *extensions = MM_GCExtensions::getExtensions(env);

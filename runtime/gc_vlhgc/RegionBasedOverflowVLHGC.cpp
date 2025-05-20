@@ -219,16 +219,25 @@ MM_RegionBasedOverflowVLHGC::overflowItemInternal(MM_EnvironmentBase *env, void 
 			/* JAZZ 63834 handle new ownableSynchronizer processing in overflowed case
 		 	 * new processing currently only for CopyForwardScheme collector
 		 	 */
+			OMRPORT_ACCESS_FROM_ENVIRONMENT(env);
 			if (isEvacuateRegion(region) && (NULL != _extensions->accessBarrier->isObjectInOwnableSynchronizerList(objectPtr))) {
 				/* To avoid adding duplication item (abort case the object need to be rescan and interregions remembered objects) 
 				 * To avoid adding constructing object 
 				 */
+
+				omrtty_printf("obj %p region %p overflow type %zu shouldMark %zu noEvac %zu\n",
+						objectPtr, region, (uintptr_t)type, (uintptr_t)region->_markData._shouldMark, (uintptr_t)region->_markData._noEvacuation);
+
 				envVLHGC->getGCEnvironment()->_ownableSynchronizerObjectBuffer->add(envVLHGC, objectPtr);
 				if (MM_CycleState::CT_PARTIAL_GARBAGE_COLLECTION == envVLHGC->_cycleState->_collectionType) {
 					envVLHGC->_copyForwardStats._ownableSynchronizerSurvived += 1;
 				} else {
 					envVLHGC->_markVLHGCStats._ownableSynchronizerSurvived += 1;
 				}
+			} else {
+				omrtty_printf("obj %p region %p SKIP overflow type %zu shouldMark %zu noEvac %zu in list %zu\n",
+						objectPtr, region, (uintptr_t)type, (uintptr_t)region->_markData._shouldMark, (uintptr_t)region->_markData._noEvacuation,
+						_extensions->accessBarrier->isObjectInOwnableSynchronizerList(objectPtr));
 			}
 		}
 	}

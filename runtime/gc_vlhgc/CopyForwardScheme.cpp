@@ -2311,6 +2311,8 @@ MM_CopyForwardScheme::updateMarkMapAndCardTableOnCopy(MM_EnvironmentVLHGC *env, 
 MMINLINE void
 MM_CopyForwardScheme::scanOwnableSynchronizerObjectSlots(MM_EnvironmentVLHGC *env, MM_AllocationContextTarok *reservingContext, J9Object *objectPtr, ScanReason reason)
 {
+	OMRPORT_ACCESS_FROM_ENVIRONMENT(env);
+	MM_HeapRegionDescriptorVLHGC *region = (MM_HeapRegionDescriptorVLHGC *)_regionManager->tableDescriptorForAddress(objectPtr);
 	/*
 	 * If object has been scanned without triggering abort add it to the list.
 	 * If object scan has triggered abort, it is added to work packet
@@ -2318,10 +2320,26 @@ MM_CopyForwardScheme::scanOwnableSynchronizerObjectSlots(MM_EnvironmentVLHGC *en
 	 * in the case of abort to prevent duplication during second scan.
 	 */
 	if (scanMixedObjectSlots(env, reservingContext, objectPtr, reason)) {
-		if ((SCAN_REASON_COPYSCANCACHE == reason) || (SCAN_REASON_PACKET == reason)) {
+		if (SCAN_REASON_COPYSCANCACHE == reason) {
+			//omrtty_printf("obj %p region %p reson %zu shouldMark %zu noEvac %zu _abortInProgress %zu\n", objectPtr, region, (uintptr_t)reason, (uintptr_t)region->_markData._shouldMark, (uintptr_t)region->_markData._noEvacuation, (uintptr_t)_abortInProgress);
 			addOwnableSynchronizerObjectInList(env, objectPtr);
+		} else if (SCAN_REASON_PACKET == reason) {
+			/* Avoid adding it if the originally reason was DIRTY_CARD (hence never meant to be added to start with) but failed during scanning,
+			 * and now we are rescannig it (while abortInProgress is true) to update references with PACKET reason.
+			 * While the original reason is lost we can stil recoginize the case (object no in CS and not copied).
+			 */
+			if (isObjectInEvacuateMemoryNoCheck(objectPtr) || isObjectInSurvivorMemory(objectPtr)) {
+				addOwnableSynchronizerObjectInList(env, objectPtr);
+			} else {
+				omrtty_printf("obj %p region %p SKIP1 reson %zu shouldMark %zu noEvac %zu _abortInProgress %zu\n", objectPtr, region, (uintptr_t)reason, (uintptr_t)region->_markData._shouldMark, (uintptr_t)region->_markData._noEvacuation, (uintptr_t)_abortInProgress);
+			}
+		} else {
+			//omrtty_printf("obj %p region %p SKIP2 reson %zu shouldMark %zu noEvac %zu _abortInProgress %zu\n", objectPtr, region, (uintptr_t)reason, (uintptr_t)region->_markData._shouldMark, (uintptr_t)region->_markData._noEvacuation, (uintptr_t)_abortInProgress);
 		}
+	} else {
+		omrtty_printf("obj %p region %p FAILED reson %zu shouldMark %zu noEvac %zu _abortInProgress %zu\n", objectPtr, region, (uintptr_t)reason, (uintptr_t)region->_markData._shouldMark, (uintptr_t)region->_markData._noEvacuation, (uintptr_t)_abortInProgress);
 	}
+
 }
 
 void
@@ -3387,12 +3405,17 @@ MM_CopyForwardScheme::isWorkPacketsOverflow(MM_EnvironmentVLHGC *env)
 bool
 MM_CopyForwardScheme::handleOverflow(MM_EnvironmentVLHGC *env)
 {
+	OMRPORT_ACCESS_FROM_ENVIRONMENT(env);
+
 	MM_WorkPackets *packets = (MM_WorkPackets *)(env->_cycleState->_workPackets);
 	bool result = false;
 
 	if (packets->getOverflowFlag()) {
+		omrtty_printf("completeScan worker %zu handleOverflow overflow flag\n", env->getWorkerID());
+
 		result = true;
 		if (((MM_CopyForwardSchemeTask*)env->_currentTask)->synchronizeGCThreadsAndReleaseMainForMark(env, UNIQUE_ID)) {
+			omrtty_printf("completeScan worker %zu handleOverflow clear overflow flag\n", env->getWorkerID());
 			packets->clearOverflowFlag();
 			env->_currentTask->releaseSynchronizedGCThreads(env);
 		}
@@ -3408,6 +3431,8 @@ MM_CopyForwardScheme::handleOverflow(MM_EnvironmentVLHGC *env)
 			}
 		}
 		((MM_CopyForwardSchemeTask*)env->_currentTask)->synchronizeGCThreadsForMark(env, UNIQUE_ID);
+	} else {
+		omrtty_printf("completeScan worker %zu handleOverflow no overflow flag\n", env->getWorkerID());
 	}
 	return result;
 }
@@ -3447,6 +3472,7 @@ MM_CopyForwardScheme::completeScanWorkPacket(MM_EnvironmentVLHGC *env)
 void
 MM_CopyForwardScheme::completeScan(MM_EnvironmentVLHGC *env)
 {
+	OMRPORT_ACCESS_FROM_ENVIRONMENT(env);
 	uintptr_t nodeOfThread = 0;
 
 	/* if we aren't using NUMA, we don't want to check the thread affinity since we will have only one list of scan caches */
@@ -3483,10 +3509,12 @@ MM_CopyForwardScheme::completeScan(MM_EnvironmentVLHGC *env)
 
 	if (((MM_CopyForwardSchemeTask*)env->_currentTask)->synchronizeGCThreadsAndReleaseMainForAbort(env, UNIQUE_ID)) {
 		if (abortFlagRaised()) {
+			omrtty_printf("completeScan worker %zu abortFlagRaised\n", env->getWorkerID());
 			_abortInProgress = true;
 		}
 		/* using abort case to handle work packets overflow during copyforwardHybrid */
 		if (!_abortInProgress && (0 != _regionCountCannotBeEvacuated) && isWorkPacketsOverflow(env)) {
+			omrtty_printf("completeScan worker %zu isWorkPacketsOverflow\n", env->getWorkerID());
 			_abortInProgress = true;
 		}
 		env->_currentTask->releaseSynchronizedGCThreads(env);

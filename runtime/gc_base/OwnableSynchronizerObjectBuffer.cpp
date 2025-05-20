@@ -72,6 +72,11 @@ MM_OwnableSynchronizerObjectBuffer::flush(MM_EnvironmentBase *env)
 void
 MM_OwnableSynchronizerObjectBuffer::add(MM_EnvironmentBase *env, j9object_t object)
 {
+	if (object == _tail) {
+		OMRPORT_ACCESS_FROM_ENVIRONMENT(env);
+		omrtty_printf("add %p\n", object);
+	}
+
 	Assert_MM_true(object != _head);
 	Assert_MM_true(object != _tail);
 
