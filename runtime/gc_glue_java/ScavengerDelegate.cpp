@@ -444,6 +444,11 @@ MM_ScavengerDelegate::getObjectScanner(MM_EnvironmentStandard *env, omrobjectptr
 			bool referentMustBeMarked = isReferenceCleared || !isObjectInNewSpace;
 			bool referentMustBeCleared = false;
 
+//			if (MUTATOR_THREAD == env->getThreadType()) {
+//				OMRPORT_ACCESS_FROM_ENVIRONMENT(env);
+//				omrtty_printf("MM_ScavengerDelegate::getObjectScanner env %zu reference obj %p\n", env->getEnvironmentId(), objectPtr);
+//			}
+
 			uintptr_t referenceObjectOptions = env->_cycleState->_referenceObjectOptions;
 			uintptr_t referenceObjectType = J9CLASS_FLAGS(clazzPtr) & J9AccClassReferenceMask;
 			switch (referenceObjectType) {

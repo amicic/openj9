@@ -56,13 +56,20 @@ MM_ReferenceObjectBuffer::reset()
 	_region = NULL;
 	_referenceObjectType = 0;
 	/* set object count to appear full so that we force initialization on the next add */
+//	if (0 == (rand() % 10)) {
+//		omrthread_sleep(1);
+//	}
 	_objectCount = _maxObjectCount;
 }
 
 void 
 MM_ReferenceObjectBuffer::flush(MM_EnvironmentBase *env)
 {
+//	OMRPORT_ACCESS_FROM_ENVIRONMENT(env);
 	if (NULL != _head) {
+		//if (MUTATOR_THREAD == env->getThreadType()) {
+		//	omrtty_printf("MM_ReferenceObjectBuffer::flush env %zu head %p tail %p\n", env->getEnvironmentId(), _head, _tail);
+		//}
 		flushImpl(env);
 		reset();
 	}
@@ -78,11 +85,14 @@ void
 MM_ReferenceObjectBuffer::add(MM_EnvironmentBase *env, j9object_t object)
 {
 	MM_GCExtensions *extensions = MM_GCExtensions::getExtensions(env);
+//	OMRPORT_ACCESS_FROM_ENVIRONMENT(env);
 
 	if ( (_objectCount < _maxObjectCount) && _region->isAddressInRegion(object) && (getReferenceObjectType(env, object) == _referenceObjectType)) {
 		/* object is permitted in this buffer */
 		Assert_MM_true(NULL != _head);
 		Assert_MM_true(NULL != _tail);
+
+		//omrtty_printf("MM_ReferenceObjectBuffer::add env %zu object %p _head %p\n", env->getEnvironmentId(), object, _head);
 
 		extensions->accessBarrier->setReferenceLink(object, _head);
 		_head = object;
@@ -94,6 +104,10 @@ MM_ReferenceObjectBuffer::add(MM_EnvironmentBase *env, j9object_t object)
 		flush(env);
 		
 		extensions->accessBarrier->setReferenceLink(object, NULL);
+		//if (MUTATOR_THREAD == env->getThreadType()) {
+		//	omrtty_printf("MM_ReferenceObjectBuffer::add (after flush) env %zu object %p\n", env->getEnvironmentId(), object);
+		//}
+
 		_head = object;
 		_tail = object;
 		_objectCount = 1;
