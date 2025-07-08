@@ -163,6 +163,10 @@ MM_EnvironmentDelegate::flushNonAllocationCaches()
 
 	_gcEnv._ownableSynchronizerObjectBuffer->flush(_env);
 	_gcEnv._continuationObjectBuffer->flush(_env);
+
+	//refs for CS since mutators paying tax (here or in MM_Scavenger::threadReleaseCaches)
+	// since those are specific for mutators doing GC work, perhpase here is not not right spot (
+	// here are caches that even just regular  mutator work (application code) can generate
 }
 
 void

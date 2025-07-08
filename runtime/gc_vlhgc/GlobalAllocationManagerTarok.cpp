@@ -123,6 +123,12 @@ bool
 MM_GlobalAllocationManagerTarok::initializeAllocationContexts(MM_EnvironmentBase *env, MM_MemorySubSpaceTarok *subspace)
 {
 	UDATA allocationSize = sizeof(MM_AllocationContextBalanced *) * _managedAllocationContextCount;
+
+
+	OMRPORT_ACCESS_FROM_ENVIRONMENT(env);
+	omrtty_printf("initializeAllocationContexts _managedAllocationContextCount %zu\n", _managedAllocationContextCount);
+
+
 	MM_AllocationContextBalanced **contexts = (MM_AllocationContextBalanced **)env->getForge()->allocate(allocationSize, MM_AllocationCategory::FIXED, J9_GET_CALLSITE());
 	if (NULL == contexts) {
 		return false;

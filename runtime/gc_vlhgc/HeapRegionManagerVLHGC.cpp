@@ -98,7 +98,7 @@ MM_HeapRegionManagerVLHGC::enableRegionsInTable(MM_EnvironmentBase *env, MM_Memo
 
 	MM_CardTable *cardTable = extensions->cardTable;
 	Assert_MM_true(NULL != cardTable);
-	bool hasPhysicalNUMASupport = extensions->_numaManager.isPhysicalNUMASupported();
+	bool hasPhysicalNUMASupport = false; // extensions->_numaManager.isPhysicalNUMASupported();
 	if (nodeCount > 1) {
 		/* get the card table since we need to set its affinity, as well */
 		uintptr_t heapRemaining = memoryManager->getMaximumSize(handle);

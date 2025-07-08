@@ -95,6 +95,11 @@ MM_ReferenceObjectList::addAll(MM_EnvironmentBase* env, UDATA referenceObjectTyp
 		previousHead = *list;
 	}
 
+//	OMRPORT_ACCESS_FROM_ENVIRONMENT(env);
+//	//if (MUTATOR_THREAD == env->getThreadType()) {
+//	omrtty_printf("MM_ReferenceObjectList::addAll env %zu previousHead %p head %p\n", env->getEnvironmentId(), previousHead,head );
+
+
 	/* detect trivial cases which can inject cycles into the linked list */
 	Assert_MM_true( (head != previousHead) && (tail != previousHead) );
 	

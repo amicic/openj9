@@ -57,11 +57,18 @@ MM_ScavengerRootClearer::processReferenceList(MM_EnvironmentStandard *env, MM_He
 	bool const compressed = _extensions->compressObjectReferences();
 
 	omrobjectptr_t referenceObj = headOfList;
+
 	while (NULL != referenceObj) {
 		objectsVisited += 1;
 		referenceStats->_candidates += 1;
 
-		Assert_MM_true(objectsVisited < maxObjects);
+//		if ((objectsVisited > (maxObjects - 1000)) || (objectsVisited < 1000)) {
+//			OMRPORT_ACCESS_FROM_ENVIRONMENT(env);
+//			omrtty_printf("referenceObj envID %zu %p %zu\n", env->getEnvironmentId(), referenceObj, objectsVisited);
+//		}
+
+		Assert_GC_true_with_message4(env, objectsVisited < maxObjects, "objectsVisited %zu maxObjects %zu referenceObj %p headOfList %p\n",
+				objectsVisited, maxObjects, referenceObj, headOfList);
 		Assert_GC_true_with_message(env, _scavenger->isObjectInNewSpace(referenceObj), "Scavenged reference object not in new space: %p\n", referenceObj);
 
 		omrobjectptr_t nextReferenceObj = _extensions->accessBarrier->getReferenceLink(referenceObj);
@@ -93,6 +100,7 @@ MM_ScavengerRootClearer::processReferenceList(MM_EnvironmentStandard *env, MM_He
 			}
 		}
 
+		Assert_MM_false(referenceObj == nextReferenceObj);
 		referenceObj = nextReferenceObj;
 	}
 	buffer.flush(env);
