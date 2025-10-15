@@ -2260,7 +2260,7 @@ combinationMemoryParameterVerification(J9JavaVM *javaVM, IDATA* memoryParameters
 	} /* of Non flat configurations */
 
 	/* Verify that -Xminf is at least 0.05 less than -Xmaxf */
-	if (extensions->heapFreeMinimumRatioMultiplier + 5 > extensions->heapFreeMaximumRatioMultiplier) {
+	if (extensions->heapFreeMinimumRatioMultiplier >= extensions->heapFreeMaximumRatioMultiplier) {
 		memoryOption = "-Xminf";
 		minValue = (float)extensions->heapFreeMinimumRatioMultiplier / 100;
 		memoryOption2 = "-Xmaxf";
