@@ -714,12 +714,17 @@ MM_GlobalMarkingScheme::scanReferenceMixedObject(MM_EnvironmentVLHGC *env, J9Obj
 UDATA
 MM_GlobalMarkingScheme::scanPointerArrayObjectSplit(MM_EnvironmentVLHGC *env, J9IndexableObject *objectPtr, UDATA startIndex, ScanReason reason)
 {
+//	OMRPORT_ACCESS_FROM_ENVIRONMENT(env);
+
 	UDATA slotsToScan = 0;
 	UDATA sizeInElements = _extensions->indexableObjectModel.getSizeInElements(objectPtr);
 	if (sizeInElements > 0) {
 		Assert_MM_true(startIndex < sizeInElements);
 		slotsToScan = sizeInElements - startIndex;
-		
+
+//		omrtty_printf("MM_GlobalMarkingScheme::scanPointerArrayObjectSplit workerID %zu objectPtr %p adjacent %zu startIndex %zu slotsToScan %zu\n",
+//				env->getWorkerID(), objectPtr, (uintptr_t)_extensions->indexableObjectModel.isDataAdjacentToHeader(objectPtr), startIndex, slotsToScan);
+
 		if (slotsToScan > _arraySplitSize) {
 			slotsToScan = _arraySplitSize;
 			
@@ -753,6 +758,7 @@ MM_GlobalMarkingScheme::scanPointerArrayObjectSplit(MM_EnvironmentVLHGC *env, J9
 
 	/* Return number of bytes scanned */
 	uintptr_t const referenceSize = env->compressObjectReferences() ? sizeof(uint32_t) : sizeof(uintptr_t);
+
 	return (slotsToScan * referenceSize);
 }
 

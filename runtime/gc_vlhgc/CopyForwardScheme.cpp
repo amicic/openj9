@@ -2648,6 +2648,11 @@ MM_CopyForwardScheme::scanPointerArrayObjectSlotsSplit(MM_EnvironmentVLHGC *env,
 	uintptr_t slotsToScan = createNextSplitArrayWorkUnit(env, arrayPtr, startIndex, currentSplitUnitOnly);
 
 	if (slotsToScan > 0) {
+//		OMRPORT_ACCESS_FROM_ENVIRONMENT(env);
+//
+//		omrtty_printf("MM_CopyForwardScheme::scanPointerArrayObjectSlotsSplit workerID %zu arrayPtr %p adjacent %zu startIndex %zu slotsToScan %zu\n",
+//				env->getWorkerID(), arrayPtr, (uintptr_t)_extensions->indexableObjectModel.isDataAdjacentToHeader(arrayPtr), startIndex, slotsToScan);
+
 		/* TODO: this iterator scans the array backwards - change it to forward, and optimize it since we can guarantee the range will be contiguous */
 		GC_PointerArrayIterator pointerArrayIterator(_javaVM, (J9Object *)arrayPtr);
 		pointerArrayIterator.setIndex(startIndex + slotsToScan);
