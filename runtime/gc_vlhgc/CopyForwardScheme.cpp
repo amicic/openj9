@@ -3986,6 +3986,14 @@ public:
 			scanStringTable(env);
 		}
 	}
+
+	void
+	cleanCardTable(MM_EnvironmentBase *env)
+	{
+		reportScanningStarted(RootScannerEntity_ScavengeRememberedSet);
+		_copyForwardScheme->cleanCardTable((MM_EnvironmentVLHGC *)env);
+		reportScanningEnded(RootScannerEntity_ScavengeRememberedSet);
+	}
 };
 
 /**
@@ -4395,8 +4403,6 @@ MM_CopyForwardScheme::workThreadGarbageCollect(MM_EnvironmentVLHGC *env)
 	/* scan roots before cleaning the card table since the roots give us more concrete NUMA recommendations */
 	scanRoots(env);
 
-	cleanCardTable(env);
-	
 	completeScan(env);
 
 	/* TODO: check if abort happened during root scanning/cardTable clearing (and optimize in any other way) */
@@ -4405,8 +4411,6 @@ MM_CopyForwardScheme::workThreadGarbageCollect(MM_EnvironmentVLHGC *env)
 		/* rescan to fix up root slots, but also to complete scanning of roots that we miss to mark/push in original root scanning */
 		scanRoots(env);
 
-		cleanCardTable(env);
-		
 		completeScan(env);
 	}
 	/*  Disable dynamicBreadthFirstScanOrdering depth copying after root scanning and main phase of PGC cycle */
@@ -4598,6 +4602,8 @@ MM_CopyForwardScheme::scanRoots(MM_EnvironmentVLHGC *env)
 		}
 	}
 #endif /* J9VM_GC_DYNAMIC_CLASS_UNLOADING */
+
+	rootScanner.cleanCardTable(env);
 }
 
 void

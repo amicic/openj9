@@ -35,6 +35,6 @@
  * 
  * @return Return 0 on success, otherwise return positive integer
  */
-UDATA tgcCardCleaningInitialize(J9JavaVM* javaVM);
+bool tgcCardCleaningInitialize(J9JavaVM* javaVM);
 
 #endif /* TGCCARDCLEANING_HPP_ */

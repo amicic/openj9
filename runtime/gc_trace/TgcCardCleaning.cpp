@@ -35,7 +35,7 @@
 static void printCardCleaningStats(OMR_VMThread *omrVMThread);
 static void tgcHookGlobalGcCycleEnd(J9HookInterface** hook, UDATA eventNumber, void* eventData, void* userData);
 
-UDATA
+bool
 tgcCardCleaningInitialize(J9JavaVM *javaVM)
 {
 	MM_GCExtensions *extensions = MM_GCExtensions::getExtensions(javaVM);
@@ -43,7 +43,7 @@ tgcCardCleaningInitialize(J9JavaVM *javaVM)
 	J9HookInterface** mmOmrHooks = J9_HOOK_INTERFACE(extensions->omrHookInterface);
 	(*mmOmrHooks)->J9HookRegisterWithCallSite(mmOmrHooks, J9HOOK_MM_OMR_GC_CYCLE_END, tgcHookGlobalGcCycleEnd, OMR_GET_CALLSITE(), NULL);
 
-	return 0;
+	return true;
 }
 
 static void 
