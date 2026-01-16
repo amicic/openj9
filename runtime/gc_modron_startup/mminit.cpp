@@ -984,6 +984,7 @@ jint
 setConfigurationSpecificMemoryParameters(J9JavaVM *javaVM, IDATA* memoryParameters, bool flatConfiguration)
 {
 	MM_GCExtensions *extensions = MM_GCExtensions::getExtensions(javaVM);
+
 	bool opt_XmsSet = (-1 != memoryParameters[opt_Xms]);
 	bool opt_XmnsSet = (-1 != memoryParameters[opt_Xmns]);
 	bool opt_XmosSet = (-1 != memoryParameters[opt_Xmos]);
@@ -1016,6 +1017,9 @@ setConfigurationSpecificMemoryParameters(J9JavaVM *javaVM, IDATA* memoryParamete
 				extensions->oldSpaceSize = MM_Math::roundToFloor(extensions->regionSize, extensions->oldSpaceSize);
 				extensions->oldSpaceSize = (extensions->oldSpaceSize >= extensions->absoluteMinimumOldSubSpaceSize) ? extensions->oldSpaceSize : extensions->absoluteMinimumOldSubSpaceSize;
 				extensions->minOldSpaceSize = extensions->oldSpaceSize;
+				OMRPORT_ACCESS_FROM_OMRVM(javaVM->omrVM);
+
+				omrtty_printf("minOldSpaceSize %zu 1\n", extensions->minOldSpaceSize);
 			}
 
 			if (!flatConfiguration) {
@@ -1503,6 +1507,9 @@ independentMemoryParameterVerification(J9JavaVM *javaVM, IDATA* memoryParameters
 		/* Update local oldSpaceSizeMinimum */
 		oldSpaceSizeMinimum = extensions->oldSpaceSize;
 		extensions->minOldSpaceSize = extensions->oldSpaceSize;
+		OMRPORT_ACCESS_FROM_OMRVM(javaVM->omrVM);
+
+		omrtty_printf("minOldSpaceSize %zu 2\n", extensions->minOldSpaceSize);
 	}
 
 	/* Align Xmox, verify it is not too large or too small. */
@@ -1675,6 +1682,7 @@ jint
 combinationMemoryParameterVerification(J9JavaVM *javaVM, IDATA* memoryParameters, bool flatConfiguration)
 {
 	MM_GCExtensions *extensions = MM_GCExtensions::getExtensions(javaVM);
+	OMRPORT_ACCESS_FROM_OMRVM(javaVM->omrVM);
 
 	/* For displaying error messages */
 	const char *memoryOption = NULL;
@@ -1835,6 +1843,7 @@ combinationMemoryParameterVerification(J9JavaVM *javaVM, IDATA* memoryParameters
 
 			extensions->oldSpaceSize = extensions->initialMemorySize;
 			extensions->minOldSpaceSize = extensions->initialMemorySize;
+			omrtty_printf("minOldSpaceSize %zu 3\n", extensions->minOldSpaceSize);
 
 			if (opt_XmoxSet && (extensions->oldSpaceSize > extensions->maxOldSpaceSize)) {
 				memoryOption = displayXmoOrXmox(memoryParameters);
@@ -1860,6 +1869,9 @@ combinationMemoryParameterVerification(J9JavaVM *javaVM, IDATA* memoryParameters
 			 */
 			extensions->oldSpaceSize = extensions->initialMemorySize;
 			extensions->minOldSpaceSize = extensions->initialMemorySize;
+			//OMRPORT_ACCESS_FROM_OMRVM(javaVM->omrVM);
+
+			omrtty_printf("minOldSpaceSize %zu 4\n", extensions->minOldSpaceSize);
 			break;
 
 		default:
@@ -1887,6 +1899,9 @@ combinationMemoryParameterVerification(J9JavaVM *javaVM, IDATA* memoryParameters
 		/* Reset minimum values if necessary */
 		if (extensions->minOldSpaceSize > extensions->oldSpaceSize) {
 			extensions->minOldSpaceSize = extensions->oldSpaceSize;
+			//OMRPORT_ACCESS_FROM_OMRVM(javaVM->omrVM);
+
+			omrtty_printf("minOldSpaceSize %zu 5\n", extensions->minOldSpaceSize);
 		}
 	} else {
 		/* Non flat configurations
@@ -2077,6 +2092,9 @@ combinationMemoryParameterVerification(J9JavaVM *javaVM, IDATA* memoryParameters
 			/* Assign Xmos */
 			extensions->oldSpaceSize = candidateXmosValue;
 			extensions->minOldSpaceSize = candidateXmosValue;
+			//OMRPORT_ACCESS_FROM_OMRVM(javaVM->omrVM);
+
+			omrtty_printf("minOldSpaceSize %zu 6\n", extensions->minOldSpaceSize);
 			break;
 
 		case NONE:
@@ -2179,7 +2197,11 @@ combinationMemoryParameterVerification(J9JavaVM *javaVM, IDATA* memoryParameters
 
 			/* Assign Xmos and Xmns values */
 			extensions->oldSpaceSize = candidateXmosValue;
-			extensions->minOldSpaceSize = candidateXmosValue;
+			//extensions->minOldSpaceSize = candidateXmosValue;
+			extensions->minOldSpaceSize = 6 * 1024;
+			//OMRPORT_ACCESS_FROM_OMRVM(javaVM->omrVM);
+
+			omrtty_printf("minOldSpaceSize %zu 7\n", extensions->minOldSpaceSize);
 			extensions->newSpaceSize = candidateXmnsValue;
 			extensions->minNewSpaceSize = candidateXmnsValue;
 			break;
@@ -2240,6 +2262,8 @@ combinationMemoryParameterVerification(J9JavaVM *javaVM, IDATA* memoryParameters
 		/* Reset minimum values if necessary */
 		if (extensions->minOldSpaceSize > extensions->oldSpaceSize) {
 			extensions->minOldSpaceSize = extensions->oldSpaceSize;
+			//OMRPORT_ACCESS_FROM_OMRVM(javaVM->omrVM);
+			omrtty_printf("minOldSpaceSize %zu 8\n", extensions->minOldSpaceSize);
 		}
 
 		if (extensions->minNewSpaceSize > extensions->newSpaceSize) {
@@ -2324,6 +2348,9 @@ combinationMemoryParameterVerification(J9JavaVM *javaVM, IDATA* memoryParameters
 		extensions->newSpaceSize = extensions->maxNewSpaceSize;
 		/* Force all the old space sizes to be "locked-in" */
 		extensions->minOldSpaceSize = extensions->maxOldSpaceSize;
+		//OMRPORT_ACCESS_FROM_OMRVM(javaVM->omrVM);
+
+		omrtty_printf("minOldSpaceSize %zu 9\n", extensions->minOldSpaceSize);
 		extensions->oldSpaceSize = extensions->maxOldSpaceSize;
 
 		UDATA total = extensions->maxNewSpaceSize + extensions->maxOldSpaceSize;
