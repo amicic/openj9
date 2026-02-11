@@ -128,22 +128,11 @@ MM_CompactDelegate::fixupRoots(MM_EnvironmentBase *env, MM_CompactScheme *compac
 void
 MM_CompactDelegate::workerCleanupAfterGC(MM_EnvironmentBase *env)
 {
-	/* flush ownable synchronizer object buffer after rebuild the ownableSynchronizerObjectList during fixupObjects */
-	env->getGCEnvironment()->_ownableSynchronizerObjectBuffer->flush(env);
 }
 
 void
 MM_CompactDelegate::mainSetupForGC(MM_EnvironmentBase *env)
 {
-	MM_GCExtensionsBase *extensions = env->getExtensions();
-	MM_HeapRegionDescriptorStandard *region = NULL;
-	GC_HeapRegionIteratorStandard regionIterator(extensions->getHeap()->getHeapRegionManager());
-	while (NULL != (region = regionIterator.nextRegion())) {
-		MM_HeapRegionDescriptorStandardExtension *regionExtension = MM_ConfigurationDelegate::getHeapRegionDescriptorStandardExtension(env, region);
-		for (uintptr_t i = 0; i < regionExtension->_maxListIndex; i++) {
-			regionExtension->_ownableSynchronizerObjectLists[i].startOwnableSynchronizerProcessing();
-		}
-	}
 }
 
 #endif /* OMR_GC_MODRON_COMPACTION */

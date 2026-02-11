@@ -33,6 +33,8 @@
 #include "Heap.hpp"
 #include "HeapRegionIteratorStandard.hpp"
 #include "ObjectAccessBarrier.hpp"
+#include "OwnableSynchronizerObjectBuffer.hpp"
+#include "OwnableSynchronizerObjectList.hpp"
 #include "Task.hpp"
 #include "UnfinalizedObjectBuffer.hpp"
 #include "UnfinalizedObjectList.hpp"
@@ -173,3 +175,46 @@ MM_CompactSchemeFixupRoots::fixupContinuationObjects(MM_EnvironmentBase *env)
 	/* restore everything to a flushed state before exiting */
 	env->getGCEnvironment()->_continuationObjectBuffer->flush(env);
 }
+
+void
+MM_CompactSchemeFixupRoots::fixupOwnableSynchronizerObjects(MM_EnvironmentBase *env)
+{
+	MM_GCExtensions* extensions = MM_GCExtensions::getExtensions(env);
+	if (env->_currentTask->synchronizeGCThreadsAndReleaseMain(env, UNIQUE_ID)) {
+		MM_HeapRegionDescriptorStandard *region = NULL;
+		GC_HeapRegionIteratorStandard regionIterator(extensions->getHeap()->getHeapRegionManager());
+		while(NULL != (region = regionIterator.nextRegion())) {
+			MM_HeapRegionDescriptorStandardExtension *regionExtension = MM_ConfigurationDelegate::getHeapRegionDescriptorStandardExtension(env, region);
+			for (uintptr_t i = 0; i < regionExtension->_maxListIndex; i++) {
+				MM_OwnableSynchronizerObjectList *list = &regionExtension->_ownableSynchronizerObjectLists[i];
+				list->startOwnableSynchronizerProcessing();
+			}
+		}
+		env->_currentTask->releaseSynchronizedGCThreads(env);
+	}
+	MM_HeapRegionDescriptorStandard *region = NULL;
+	GC_HeapRegionIteratorStandard regionIterator(extensions->getHeap()->getHeapRegionManager());
+	while(NULL != (region = regionIterator.nextRegion())) {
+		MM_HeapRegionDescriptorStandardExtension *regionExtension = MM_ConfigurationDelegate::getHeapRegionDescriptorStandardExtension(env, region);
+		for (uintptr_t i = 0; i < regionExtension->_maxListIndex; i++) {
+			MM_OwnableSynchronizerObjectList *list = &regionExtension->_ownableSynchronizerObjectLists[i];
+			if (!list->wasEmpty()) {
+				if(J9MODRON_HANDLE_NEXT_WORK_UNIT(env)) {
+					omrobjectptr_t object = list->getPriorList();
+					while (NULL != object) {
+
+						omrobjectptr_t forwardedPtr = _compactScheme->getForwardingPtr(object);
+						/* read the next link out of the moved copy of the object before we add it to the buffer */
+						object = extensions->accessBarrier->getOwnableSynchronizerLink(forwardedPtr, object);
+						/* store the object in this thread's buffer. It will be flushed to the appropriate list when necessary. */
+						env->getGCEnvironment()->_ownableSynchronizerObjectBuffer->add(env, forwardedPtr);
+					}
+				}
+			}
+		}
+	}
+
+	/* restore everything to a flushed state before exiting */
+	env->getGCEnvironment()->_ownableSynchronizerObjectBuffer->flush(env);
+}
+

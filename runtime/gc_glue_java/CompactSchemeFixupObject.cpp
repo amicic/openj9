@@ -35,7 +35,6 @@
 #include "HeapRegionIteratorStandard.hpp"
 #include "MixedObjectIterator.hpp"
 #include "ObjectAccessBarrier.hpp"
-#include "OwnableSynchronizerObjectBuffer.hpp"
 #include "ParallelDispatcher.hpp"
 #include "PointerContiguousArrayIterator.hpp"
 #include "StackSlotValidator.hpp"
@@ -151,15 +150,6 @@ MM_CompactSchemeFixupObject::fixupFlattenedArrayObject(omrobjectptr_t objectPtr)
 	}
 }
 
-MMINLINE void
-MM_CompactSchemeFixupObject::addOwnableSynchronizerObjectInList(MM_EnvironmentBase *env, omrobjectptr_t objectPtr)
-{
-	/* if isObjectInOwnableSynchronizerList() return NULL, it means the object isn't in OwnableSynchronizerList,
-	 * it could be the constructing object which would be added in the list after the construction finish later. ignore the object to avoid duplicated reference in the list. */
-	if (NULL != _extensions->accessBarrier->isObjectInOwnableSynchronizerList(objectPtr)) {
-		env->getGCEnvironment()->_ownableSynchronizerObjectBuffer->add(env, objectPtr);
-	}
-}
 
 void
 MM_CompactSchemeFixupObject::fixupObject(MM_EnvironmentStandard *env, omrobjectptr_t objectPtr)
@@ -171,6 +161,7 @@ MM_CompactSchemeFixupObject::fixupObject(MM_EnvironmentStandard *env, omrobjectp
 	case GC_ObjectModel::SCAN_CLASS_OBJECT:
 	case GC_ObjectModel::SCAN_CLASSLOADER_OBJECT:
 	case GC_ObjectModel::SCAN_REFERENCE_MIXED_OBJECT:
+	case GC_ObjectModel::SCAN_OWNABLESYNCHRONIZER_OBJECT:
 		fixupMixedObject(objectPtr);
 		break;
 
@@ -180,11 +171,6 @@ MM_CompactSchemeFixupObject::fixupObject(MM_EnvironmentStandard *env, omrobjectp
 
 	case GC_ObjectModel::SCAN_PRIMITIVE_ARRAY_OBJECT:
 		/* nothing to do */
-		break;
-
-	case GC_ObjectModel::SCAN_OWNABLESYNCHRONIZER_OBJECT:
-		addOwnableSynchronizerObjectInList(env, objectPtr);
-		fixupMixedObject(objectPtr);
 		break;
 	case GC_ObjectModel::SCAN_CONTINUATION_OBJECT:
 		fixupContinuationObject(env, objectPtr);

@@ -93,7 +93,9 @@ public:
 #endif /* J9VM_GC_FINALIZATION */
 
 	virtual void scanOwnableSynchronizerObjects(MM_EnvironmentBase *env) {
-		/* empty, move ownable synchronizer processing in fixupObject */
+		reportScanningStarted(RootScannerEntity_OwnableSynchronizerObjects);
+		fixupOwnableSynchronizerObjects(env);
+		reportScanningStarted(RootScannerEntity_OwnableSynchronizerObjects);
 	}
 
 	virtual void scanContinuationObjects(MM_EnvironmentBase *env) {
@@ -109,5 +111,7 @@ private:
 	void fixupUnfinalizedObjects(MM_EnvironmentBase *env);
 #endif
 	void fixupContinuationObjects(MM_EnvironmentBase *env);
+
+	void fixupOwnableSynchronizerObjects(MM_EnvironmentBase *env);
 };
 #endif /* FIXUPROOTS_HPP_ */
