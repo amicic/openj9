@@ -130,6 +130,10 @@ javaCheckAsyncMessages(J9VMThread *currentThread, UDATA throwExceptions)
 	}
 	/* Start the async check loop */
 	omrthread_monitor_enter(currentThread->publicFlagsMutex);
+	if (0 == rand() % 1000) {
+		PORT_ACCESS_FROM_VMC(currentThread);
+		j9tty_printf(PORTLIB, "javaCheckAsyncMessages currentThread %p publicFlags %p\n", currentThread, currentThread->publicFlags);
+	}
 	UDATA volatile *flagsPtr = (UDATA volatile*)&currentThread->publicFlags;
 	for (;;) {
 		UDATA const publicFlags = *flagsPtr;

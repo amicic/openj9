@@ -311,6 +311,11 @@ MM_VLHGCAccessBarrier::indexableDataDisplacement(J9StackWalkState *walkState, J9
 void*
 MM_VLHGCAccessBarrier::jniGetPrimitiveArrayCritical(J9VMThread* vmThread, jarray array, jboolean *isCopy)
 {
+	if (0 == rand() % 1024) {
+		PORT_ACCESS_FROM_VMC(vmThread);
+		j9tty_printf(PORTLIB, "jniGetPrimitiveArrayCritical vmThread %p publicFlags %p array %p\n", vmThread, vmThread->publicFlags, array);
+	}
+
 	void *data = NULL;
 	VM_VMAccess::inlineEnterVMFromJNI(vmThread);
 	GC_ArrayObjectModel *indexableObjectModel = &_extensions->indexableObjectModel;
@@ -389,6 +394,11 @@ MM_VLHGCAccessBarrier::jniGetPrimitiveArrayCritical(J9VMThread* vmThread, jarray
 void
 MM_VLHGCAccessBarrier::jniReleasePrimitiveArrayCritical(J9VMThread* vmThread, jarray array, void * elems, jint mode)
 {
+	if (0 == rand() % 1024) {
+		PORT_ACCESS_FROM_VMC(vmThread);
+		j9tty_printf(PORTLIB, "jniReleasePrimitiveArrayCritical vmThread %p publicFlags %p array %p\n", vmThread, vmThread->publicFlags, array);
+	}
+
 	VM_VMAccess::inlineEnterVMFromJNI(vmThread);
 	GC_ArrayObjectModel *indexableObjectModel = &_extensions->indexableObjectModel;
 
@@ -462,6 +472,11 @@ MM_VLHGCAccessBarrier::jniReleasePrimitiveArrayCritical(J9VMThread* vmThread, ja
 const jchar*
 MM_VLHGCAccessBarrier::jniGetStringCritical(J9VMThread* vmThread, jstring str, jboolean *isCopy)
 {
+	if (0 == rand() % 1024) {
+		PORT_ACCESS_FROM_VMC(vmThread);
+		j9tty_printf(PORTLIB, "jniGetStringCritical vmThread %p publicFlags %p\n", vmThread, vmThread->publicFlags);
+	}
+
 	jchar *data = NULL;
 	J9JavaVM *javaVM = vmThread->javaVM;
 	VM_VMAccess::inlineEnterVMFromJNI(vmThread);
@@ -546,6 +561,11 @@ MM_VLHGCAccessBarrier::jniGetStringCritical(J9VMThread* vmThread, jstring str, j
 void
 MM_VLHGCAccessBarrier::jniReleaseStringCritical(J9VMThread* vmThread, jstring str, const jchar* elems)
 {
+	if (0 == rand() % 1024) {
+		PORT_ACCESS_FROM_VMC(vmThread);
+		j9tty_printf(PORTLIB, "jniReleaseStringCritical vmThread %p publicFlags %p\n", vmThread, vmThread->publicFlags);
+	}
+
 	J9JavaVM *javaVM = vmThread->javaVM;
 	VM_VMAccess::inlineEnterVMFromJNI(vmThread);
 	GC_ArrayObjectModel *indexableObjectModel = &_extensions->indexableObjectModel;

@@ -364,6 +364,11 @@ MM_StandardAccessBarrier::recentlyAllocatedObject(J9VMThread *vmThread, J9Object
 void*
 MM_StandardAccessBarrier::jniGetPrimitiveArrayCritical(J9VMThread* vmThread, jarray array, jboolean *isCopy)
 {
+	if (0 == rand() % 1024) {
+		PORT_ACCESS_FROM_VMC(vmThread);
+		j9tty_printf(PORTLIB, "jniGetPrimitiveArrayCritical vmThread %p publicFlags %p array %p\n", vmThread, vmThread->publicFlags, array);
+	}
+
 	void *data = NULL;
 
 	bool shouldCopy = false;
@@ -392,6 +397,11 @@ MM_StandardAccessBarrier::jniGetPrimitiveArrayCritical(J9VMThread* vmThread, jar
 void
 MM_StandardAccessBarrier::jniReleasePrimitiveArrayCritical(J9VMThread* vmThread, jarray array, void * elems, jint mode)
 {
+	if (0 == rand() % 1024) {
+		PORT_ACCESS_FROM_VMC(vmThread);
+		j9tty_printf(PORTLIB, "jniReleasePrimitiveArrayCritical vmThread %p publicFlags %p array %p\n", vmThread, vmThread->publicFlags, array);
+	}
+
 	J9JavaVM *javaVM = vmThread->javaVM;
 
 	bool shouldCopy = false;
