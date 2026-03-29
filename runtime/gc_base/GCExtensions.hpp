@@ -391,6 +391,13 @@ public:
 		, finalizeCycleInterval(J9_FINALIZABLE_INTERVAL)  /* 1/2 second */
 		, finalizeCycleLimit(0)  /* 0 seconds (i.e. no time limit) */
 #endif /* J9VM_GC_FINALIZATION */
+		, hookInterface()
+		, collectStringConstants(false)
+		, markJavaStats()
+#if defined(J9VM_GC_MODRON_SCAVENGER)
+		, scavengerJavaStats()
+#endif /* J9VM_GC_MODRON_SCAVENGER */
+		, continuationStats()
 #if defined(J9VM_GC_DYNAMIC_CLASS_UNLOADING)
 		, dynamicClassUnloading(DYNAMIC_CLASS_UNLOADING_NEVER)
 		, _dynamicClassUnloadingSet(false)
