@@ -723,6 +723,7 @@ static void
 waitForResponseFromExternalThread(J9JavaVM * vm, UDATA vmResponsesExpected, UDATA jniResponsesExpected)
 {
 	PORT_ACCESS_FROM_JAVAVM(vm);
+	j9tty_printf(PORTLIB, "waitForResponseFromExternalThread\n");
 
 	omrthread_monitor_enter(vm->exclusiveAccessMutex);
 	vm->exclusiveAccessResponseCount += vmResponsesExpected;
@@ -754,6 +755,9 @@ acquireExclusiveVMAccessFromExternalThread(J9JavaVM * vm)
 	J9VMThread * currentThread;
 	UDATA vmResponsesExpected = 0;
 	UDATA jniResponsesExpected = 0;
+
+	PORT_ACCESS_FROM_JAVAVM(vm);
+	j9tty_printf(PORTLIB, "acquireExclusiveVMAccessFromExternalThread\n");
 
 	/* If exclusive has already been acquired, nothing need be done here */
 	if (vm->alreadyHaveExclusive) {
@@ -842,6 +846,9 @@ releaseExclusiveVMAccessFromExternalThread(J9JavaVM * vm)
 {
 	J9VMThread * currentThread;
 
+	PORT_ACCESS_FROM_JAVAVM(vm);
+	j9tty_printf(PORTLIB, "releaseExclusiveVMAccessFromExternalThread\n");
+
 	/* If exclusive has already been acquired, nothing need be done here */
 	if (vm->alreadyHaveExclusive) {
 		return;
@@ -923,6 +930,9 @@ requestExclusiveVMAccessMetronomeTemp(J9JavaVM *vm, UDATA block, UDATA *vmRespon
 	UDATA vmResponsesExpected = 0;
 	UDATA jniResponsesExpected = 0;
 	*gcPriority = J9THREAD_PRIORITY_MAX;
+
+	PORT_ACCESS_FROM_JAVAVM(vm);
+	j9tty_printf(PORTLIB, "requestExclusiveVMAccessMetronomeTemp\n");
 
 	/* If exclusive has already been acquired, nothing need be done here */
 	if (vm->alreadyHaveExclusive) {
@@ -1027,6 +1037,8 @@ void
 waitForExclusiveVMAccessMetronomeTemp(J9VMThread * vmThread, UDATA vmResponsesRequired, UDATA jniResponsesRequired)
 {
 	J9JavaVM *vm = vmThread->javaVM;
+	PORT_ACCESS_FROM_JAVAVM(vm);
+	j9tty_printf(PORTLIB, "waitForExclusiveVMAccessMetronomeTemp vmThread %p\n", vmThread);
 
 	/* If exclusive has already been acquired, nothing need be done here */
 	if (vm->alreadyHaveExclusive) {

@@ -160,7 +160,9 @@ MM_OwnableSynchronizerObjectList::heapWalkCallback(J9JavaVM *javaVM, J9MM_Iterat
 void
 MM_OwnableSynchronizerObjectList::ensureHeapWalkable(MM_EnvironmentBase *env)
 {
+	OMRPORT_ACCESS_FROM_ENVIRONMENT(env);
 
+	omrtty_printf("ensureHeapWalkable thread %p\n", env->getLanguageVMThread());
 	if (NULL == _javaVM) {
 		_javaVM = _extensions->getJavaVM();
 	}
@@ -182,9 +184,9 @@ MM_OwnableSynchronizerObjectList::ensureHeapWalkable(MM_EnvironmentBase *env)
 	}
 
 
-	if (savedGCFlags == 0) { /* if you set it, you have to unset it */
-		_javaVM->requiredDebugAttributes &= ~J9VM_DEBUG_ATTRIBUTE_ALLOW_USER_HEAP_WALK;
-	}
+//	if (savedGCFlags == 0) { /* if you set it, you have to unset it */
+//		_javaVM->requiredDebugAttributes &= ~J9VM_DEBUG_ATTRIBUTE_ALLOW_USER_HEAP_WALK;
+//	}
 }
 
 j9object_t

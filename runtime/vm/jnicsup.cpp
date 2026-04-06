@@ -1710,6 +1710,8 @@ j9jni_deleteGlobalRef(JNIEnv *env, jobject globalRef, jboolean isWeak)
 	J9VMThread * vmThread = (J9VMThread *) env;
 	J9JavaVM * vm = vmThread->javaVM;
 
+	PORT_ACCESS_FROM_JAVAVM(vm);
+	j9tty_printf(PORTLIB, "j9jni_deleteGlobalRef vmThread %p omrVMThread->exclusiveCount %zu\n", vmThread, vmThread->omrVMThread->exclusiveCount);
 	Assert_VM_mustHaveVMAccess(vmThread);
 
 	if (globalRef != NULL) {

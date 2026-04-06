@@ -493,6 +493,10 @@ MM_MetronomeDelegate::addDyingClassesToList(MM_EnvironmentRealtime *env, J9Class
 	J9VMThread *vmThread = (J9VMThread *)env->getLanguageVMThread();
 	J9Class *classUnloadList = classUnloadListStart;
 	UDATA classUnloadCount = 0;
+	OMRPORT_ACCESS_FROM_ENVIRONMENT(env);
+	omrtty_printf("addDyingClassesToList thread %p publicFlags %p\n", vmThread, vmThread->publicFlags);
+
+	//Assert_GC_true_with_message2(env, 0 != (vmThread->publicFlags & J9_PUBLIC_FLAGS_VM_ACCESS), "thread %p publicFlags %p\n", vmThread, vmThread->publicFlags);
 
 	if (NULL != classLoader) {
 		GC_ClassLoaderSegmentIterator segmentIterator(classLoader, MEMORY_TYPE_RAM_CLASS);
@@ -1103,17 +1107,26 @@ MM_MetronomeDelegate::requestExclusiveVMAccess(MM_EnvironmentBase *env, uintptr_
 
 /**
  * Block until the earlier request for exclusive VM access completes.
+ * Run in the context of main GC thread.
  * @note This can only be called by the MainGC thread.
  * @param The requesting thread.
  */
 void 
 MM_MetronomeDelegate::waitForExclusiveVMAccess(MM_EnvironmentBase *env, bool waitRequired)
 {
+	OMRPORT_ACCESS_FROM_ENVIRONMENT(env);
 	J9VMThread *mainGCThread = (J9VMThread *)env->getLanguageVMThread();
+	J9VMThread *vmThread = (J9VMThread *)env->getOmrVMThread()->_language_vmthread;
 	
 	if (waitRequired) {
+		omrtty_printf("waitForExclusiveVMAccess vmThread %p mainGCThread %p wait for exclusive (count %zu)\n", vmThread, mainGCThread, mainGCThread->omrVMThread->exclusiveCount);
 		_javaVM->internalVMFunctions->waitForExclusiveVMAccessMetronomeTemp((J9VMThread *)env->getLanguageVMThread(), _vmResponsesRequiredForExclusiveVMAccess, _jniResponsesRequiredForExclusiveVMAccess);
+	} else {
+		omrtty_printf("waitForExclusiveVMAccess vmThread %p mainGCThread %p setting VM access flag (exclusive has already been acquired (count %zu))\n", vmThread, mainGCThread, mainGCThread->omrVMThread->exclusiveCount);
+		Assert_MM_true(0 == (mainGCThread->publicFlags & J9_PUBLIC_FLAGS_VM_ACCESS));
+		VM_VMAccess::setPublicFlags(mainGCThread, J9_PUBLIC_FLAGS_VM_ACCESS);
 	}
+	//Assert_MM_true(0 == mainGCThread->omrVMThread->exclusiveCount);
 	++(mainGCThread->omrVMThread->exclusiveCount);
 }
 
@@ -1142,10 +1155,14 @@ MM_MetronomeDelegate::acquireExclusiveVMAccess(MM_EnvironmentBase *env, bool wai
 void 
 MM_MetronomeDelegate::releaseExclusiveVMAccess(MM_EnvironmentBase *env, bool releaseRequired)
 {
+	OMRPORT_ACCESS_FROM_ENVIRONMENT(env);
 	J9VMThread *mainGCThread = (J9VMThread *)env->getLanguageVMThread();
+	J9VMThread *vmThread = (J9VMThread *)env->getOmrVMThread()->_language_vmthread;
 
 	--(mainGCThread->omrVMThread->exclusiveCount);
+	//Assert_MM_true(0 == mainGCThread->omrVMThread->exclusiveCount);
 	if (releaseRequired) {
+		omrtty_printf("releaseExclusiveVMAccess vmThread %p mainGCThread %p releasing exclusive VM access \n", vmThread, mainGCThread);
 		_javaVM->internalVMFunctions->releaseExclusiveVMAccessMetronome(mainGCThread);
 		/* Set the exclusive access response counts to an unusual value,
 		 * just for debug purposes, so we can detect scenarios, when main
@@ -1153,6 +1170,11 @@ MM_MetronomeDelegate::releaseExclusiveVMAccess(MM_EnvironmentBase *env, bool rel
 		 */
 		_vmResponsesRequiredForExclusiveVMAccess = 0x7fffffff;
 		_jniResponsesRequiredForExclusiveVMAccess = 0x7fffffff;
+	} else {
+		omrtty_printf("releaseExclusiveVMAccess vmThread %p mainGCThread %p releasing VM access only (exclusive will be released later)\n", vmThread, mainGCThread);
+		Assert_MM_true(J9_PUBLIC_FLAGS_VM_ACCESS == (mainGCThread->publicFlags & J9_PUBLIC_FLAGS_VM_ACCESS));
+		VM_VMAccess::clearPublicFlags(mainGCThread, J9_PUBLIC_FLAGS_VM_ACCESS);
+
 	}
 }
 

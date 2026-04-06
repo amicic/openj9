@@ -571,6 +571,10 @@ prepareForDump(struct J9JavaVM *vm, struct J9RASdumpAgent *agent, struct J9RASdu
 	BOOLEAN exclusiveHeld = J9_XACCESS_NONE != vm->exclusiveAccessState;
 	BOOLEAN acquireVMAccessAfterWait = FALSE;
 
+	PORT_ACCESS_FROM_JAVAVM(vm);
+	//j9tty_printf(PORTLIB, "prepareForDump vmThread %p publicFlags %p\n", vmThread, vmThread->publicFlags);
+	j9tty_printf(PORTLIB, "prepareForDump vmThread %p\n", vmThread);
+
 	/* Is trace running? */
 	if ((NULL != uteInterface) && (NULL != uteInterface->server)) {
 		/* Disable trace while taking a dump. */
@@ -670,8 +674,12 @@ prepareForDump(struct J9JavaVM *vm, struct J9RASdumpAgent *agent, struct J9RASdu
 						vm->internalVMFunctions->internalAcquireVMAccess(vmThread);
 						newState |= J9RAS_DUMP_GOT_VM_ACCESS;
 					}
+					j9tty_printf(PORTLIB, "prepareForDump vmThread %p about to acquireExclusiveVMAccess\n", vmThread);
+
 					vm->internalVMFunctions->acquireExclusiveVMAccess(vmThread);
 				} else {
+					j9tty_printf(PORTLIB, "prepareForDump vmThread %p about to acquireExclusiveVMAccessFromExternalThread\n", vmThread);
+
 					vm->internalVMFunctions->acquireExclusiveVMAccessFromExternalThread(vm);
 				}
 
@@ -705,7 +713,9 @@ prepareForDump(struct J9JavaVM *vm, struct J9RASdumpAgent *agent, struct J9RASdu
 			 * otherwise NULL class objects would be captured by GC assertion.
 			 */
 			if (J9_ARE_ALL_BITS_SET(vm->extendedRuntimeFlags, J9_EXTENDED_RUNTIME_CLASS_OBJECT_ASSIGNED) && !gcEvent) {
+				j9tty_printf(PORTLIB, "prepareForDump before RAS sys GC\n");
 				vm->memoryManagerFunctions->j9gc_modron_global_collect_with_overrides(vmThread, J9MMCONSTANT_EXPLICIT_GC_RASDUMP_COMPACT);
+				j9tty_printf(PORTLIB, "prepareForDump after RAS sys GC\n");
 				newState |= J9RAS_DUMP_HEAP_COMPACTED;
 			}
 		}

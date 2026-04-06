@@ -143,17 +143,27 @@ void
 MM_MemorySubSpaceMetronome::systemGarbageCollect(MM_EnvironmentBase *env, U_32 gcCode) {
 	MM_EnvironmentRealtime *envRealtime = MM_EnvironmentRealtime::getEnvironment(env);
 	MM_Scheduler *sched = (MM_Scheduler *)envRealtime->getExtensions()->dispatcher;
+	OMRPORT_ACCESS_FROM_ENVIRONMENT(env);
+	omrtty_printf("MM_MemorySubSpaceMetronome::systemGarbageCollect start vmThread %p gcCode %u\n", env->getLanguageVMThread(), gcCode);
+
 
 	if (sched->isInitialized()) {
 		MM_GCExtensionsBase *ext = env->getExtensions();
 		ext->realtimeGC->setFixHeapForWalk(true);
 		sched->startGC(envRealtime);
 		sched->setGCCode(MM_GCCode(gcCode));
-		/* if we were triggered by rasdump, then the caller has already acquired exclusive VM access */
-		sched->continueGC(envRealtime, SYSTEM_GC_TRIGGER, 0, envRealtime->getOmrVMThread(), J9MMCONSTANT_EXPLICIT_GC_RASDUMP_COMPACT != gcCode);
+		if (J9MMCONSTANT_EXPLICIT_GC_RASDUMP_COMPACT == gcCode) {
+			/* if we were triggered by rasdump, then the caller has already acquired exclusive VM access */
+			//collect(env, gcCode);
+			sched->continueGC(envRealtime, SYSTEM_GC_TRIGGER, 0, envRealtime->getOmrVMThread(), J9MMCONSTANT_EXPLICIT_GC_RASDUMP_COMPACT != gcCode); // true
+		} else {
+			sched->continueGC(envRealtime, SYSTEM_GC_TRIGGER, 0, envRealtime->getOmrVMThread(), J9MMCONSTANT_EXPLICIT_GC_RASDUMP_COMPACT != gcCode); // true
+		}
 		/* TODO CRGTMP remove this call since continueGC blocks */
 		ext->realtimeGC->getRealtimeDelegate()->yieldWhenRequested(envRealtime);
 	}
+
+	omrtty_printf("MM_MemorySubSpaceMetronome::systemGarbageCollect end vmThread %p gcCode %u\n", env->getLanguageVMThread(), gcCode);
 }
 
 /**

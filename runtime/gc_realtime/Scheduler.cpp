@@ -324,6 +324,11 @@ MM_Scheduler::continueGC(MM_EnvironmentRealtime *env, GCReason reason, uintptr_t
 		return false;
 	}
 
+	OMRPORT_ACCESS_FROM_ENVIRONMENT(env);
+	omrtty_printf("continueGC vmThread %p reason %zu doRequestExclusiveVMAccess %zu _threadWaitingOnMainThreadMonitor %p\n",
+			env->getLanguageVMThread(), (uintptr_t)reason, (uintptr_t)doRequestExclusiveVMAccess, _threadWaitingOnMainThreadMonitor);
+
+
 	if (_extensions->trackMutatorThreadCategory) {
 		/* This thread is doing GC work, account for the time spent into the GC bucket */
 		omrthread_set_category(omrthread_self(), J9THREAD_CATEGORY_SYSTEM_GC_THREAD, J9THREAD_TYPE_SET_GC);
@@ -350,16 +355,22 @@ MM_Scheduler::continueGC(MM_EnvironmentRealtime *env, GCReason reason, uintptr_t
 			/* System garbage collects, if not disabled through the usual command lines,
 		 	* force a synchronous GC
 		 	*/
+			omrtty_printf("continueGC 1\n");
 		 	_completeCurrentGCSynchronously = true;
 		 	_completeCurrentGCSynchronouslyReason = reason;
 		 	_completeCurrentGCSynchronouslyReasonParameter = resonParameter;
 
 			break;
 		default: /* WORK_TRIGGER or TIME_TRIGGER */ {
+			omrtty_printf("continueGC 2\n");
 			if (NULL != _threadWaitingOnMainThreadMonitor) {
+				omrtty_printf("continueGC 3\n");
+
 				/* Check your timer again incase another thread beat you to checking for shouldMutatorDoubleBeat */
 				if (env->getTimer()->hasTimeElapsed(getStartTimeOfCurrentMutatorSlice(), _beatNanos)) {
+					omrtty_printf("continueGC 4\n");
 					if (shouldMutatorDoubleBeat(_threadWaitingOnMainThreadMonitor, env->getTimer())) {
+						omrtty_printf("continueGC 5\n");
 						/*
 						 * Since the mutator should double beat signal the mutator threads to update their
 						 * timer with the current time.
@@ -367,15 +378,22 @@ MM_Scheduler::continueGC(MM_EnvironmentRealtime *env, GCReason reason, uintptr_t
 						setStartTimeOfCurrentMutatorSlice(env->getTimer()->getTimeInNanos());
 						didGC = false;
 						goto exit;
+					} else {
+						omrtty_printf("continueGC 6\n");
 					}
 				} else {
 					didGC = false;
+					omrtty_printf("continueGC 7\n");
 					goto exit;
 				}
+			} else {
+				omrtty_printf("continueGC 8\n");
 			}
 			break;
 		}
 	}
+	omrtty_printf("continueGC 9\n");
+
 	if (NULL == _threadWaitingOnMainThreadMonitor) {
 		/*
  		* The gc thread(s) are already awake and collecting (otherwise, the main
@@ -388,6 +406,8 @@ MM_Scheduler::continueGC(MM_EnvironmentRealtime *env, GCReason reason, uintptr_t
  		goto exit;
 	}
 
+	omrtty_printf("continueGC 10\n");
+
 	/* At this point main thread is blocked and cannot change _gcOn flag anymore.
 	 * Check the flag again, since there is (a small) chance it may have changed since the last check
 	 * (main thread, driven by mutators' could have finished the GC cycle)
@@ -396,6 +416,8 @@ MM_Scheduler::continueGC(MM_EnvironmentRealtime *env, GCReason reason, uintptr_t
 		didGC = false;
 		goto exit;
 	}
+
+	omrtty_printf("continueGC 11\n");
 
 	_exclusiveVMAccessRequired = doRequestExclusiveVMAccess;
 
@@ -443,6 +465,7 @@ MM_Scheduler::waitForMutatorsToStop(MM_EnvironmentRealtime *env)
 {
 	/* assumption: only main enters this */
 	OMRPORT_ACCESS_FROM_ENVIRONMENT(env);
+	omrtty_printf("waitForMutatorsToStop vmThread %p\n", env->getLanguageVMThread());
 
 	/* we need to record how long it took to wait for the mutators to stop */
 	uint64_t exclusiveAccessTime = omrtime_hires_clock();
@@ -738,6 +761,10 @@ void MM_Scheduler::yieldFromGC(MM_EnvironmentRealtime *env, bool distanceChecked
 	assert(!_gc->isCollectorConcurrentTracing());
 	assert(!_gc->isCollectorConcurrentSweeping());
 	if (env->isMainThread()) {
+
+		OMRPORT_ACCESS_FROM_ENVIRONMENT(env);
+		omrtty_printf("yieldFromGC vmThread %p\n", env->getLanguageVMThread());
+
 		if (_yieldCollaborator) {
 			/* wait for workers to yield/sync */
 			_yieldCollaborator->yield(env);
