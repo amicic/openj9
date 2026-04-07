@@ -72,6 +72,8 @@
 #include "VMInterface.hpp"
 #include "VMThreadListIterator.hpp"
 #include "VMThreadIterator.hpp"
+#include "CompactDelegate.hpp"
+#include "CompactSchemeFixupObject.hpp"
 
 /**
  * @todo Provide function documentation
@@ -847,8 +849,11 @@ MM_RootScanner::scanJNIWeakGlobalReferences(MM_EnvironmentBase *env)
  * @todo Provide function documentation
  */
 void
-MM_RootScanner::scanRememberedSet(MM_EnvironmentBase *env)
+MM_RootScanner::scanRememberedSet(MM_EnvironmentBase *env, MM_CompactScheme *compactScheme)
 {
+	// TODO: use nurseryOnly to control
+	OMRPORT_ACCESS_FROM_OMRPORT(env->getPortLibrary());
+	omrtty_printf("SHADMAN scanRememberedSet Starting...\n");
 	if (_singleThread || J9MODRON_HANDLE_NEXT_WORK_UNIT(env)) {
 		reportScanningStarted(RootScannerEntity_RememberedSet);
 
@@ -856,13 +861,30 @@ MM_RootScanner::scanRememberedSet(MM_EnvironmentBase *env)
 		J9Object **slotPtr;
 		GC_RememberedSetIterator rememberedSetIterator(&_extensions->rememberedSet);
 
+		MM_EnvironmentStandard *envStandard = MM_EnvironmentStandard::getEnvironment(env);
+		MM_CompactSchemeFixupObject *fixupObjectPtr;
+		if (NULL != compactScheme){
+			omrtty_printf("SHADMAN scanRememberedSet Found compactScheme\n");
+			MM_CompactSchemeFixupObject fixObject(env, compactScheme);
+			fixupObjectPtr = &fixObject;
+		}
+
 		while ((puddle = rememberedSetIterator.nextList()) != NULL) {
+			omrtty_printf("SHADMAN scanRememberedSet Next puddle\n");
 			GC_RememberedSetSlotIterator rememberedSetSlotIterator(puddle);
 			while ((slotPtr = (J9Object **)rememberedSetSlotIterator.nextSlot()) != NULL) {
+				// TODO: this is where RS objects are iterated through. Do a fixup here
+				// TODO: why is this a double ptr?
+				if (NULL != compactScheme){
+					omrtty_printf("SHADMAN scanRememberedSet fixupObject\n");
+					fixupObjectPtr->fixupObject(envStandard, *slotPtr);
+				}
+				omrtty_printf("SHADMAN scanRememberedSet doRememberedSetSlot\n");
 				doRememberedSetSlot(slotPtr, &rememberedSetSlotIterator);
 			}
 		}
 
+		omrtty_printf("SHADMAN scanRememberedSet reportScanningEnded\n");
 		reportScanningEnded(RootScannerEntity_RememberedSet);
 	}
 }
@@ -1049,7 +1071,8 @@ MM_RootScanner::scanClearable(MM_EnvironmentBase *env)
 	 * This must after any other marking might occur, e.g. phantom references.
 	 */
 	if (_includeRememberedSetReferences && !_nurseryReferencesOnly && !_nurseryReferencesPossibly) {
-		scanRememberedSet(env);
+		// TODO: don't need new arg here so just null
+		scanRememberedSet(env, NULL);
 	}
 #endif /* J9VM_GC_MODRON_SCAVENGER */
 
@@ -1072,7 +1095,7 @@ MM_RootScanner::scanClearable(MM_EnvironmentBase *env)
  * @note this includes class references.
  */
 void
-MM_RootScanner::scanAllSlots(MM_EnvironmentBase *env)
+MM_RootScanner::scanAllSlots(MM_EnvironmentBase *env, MM_CompactScheme *compactScheme)
 {
 	if (!_nurseryReferencesOnly && !_nurseryReferencesPossibly) {
 		scanClasses(env);
@@ -1104,7 +1127,8 @@ MM_RootScanner::scanAllSlots(MM_EnvironmentBase *env)
 
 #if defined(J9VM_GC_MODRON_SCAVENGER)
 	if (_includeRememberedSetReferences && !_nurseryReferencesOnly && !_nurseryReferencesPossibly) {
-		scanRememberedSet(env);
+		// TODO:
+		scanRememberedSet(env, compactScheme);
 	}
 #endif /* J9VM_GC_MODRON_SCAVENGER */
 	

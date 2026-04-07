@@ -4757,7 +4757,7 @@ MM_CopyForwardScheme::verifyCopyForwardResult(MM_EnvironmentVLHGC *env)
 #endif /* defined(J9VM_GC_SPARSE_HEAP_ALLOCATION) */
 
 	MM_CopyForwardVerifyScanner scanner(env, this);
-	scanner.scanAllSlots(env);
+	scanner.scanAllSlots(env, NULL);
 
 	if (NULL != env->_cycleState->_externalCycleState) {
 		verifyExternalState(env);

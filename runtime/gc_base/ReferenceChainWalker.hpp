@@ -260,7 +260,7 @@ public:
 	void tearDown(MM_EnvironmentBase *env);
 
 	void scanReachableObjects(MM_EnvironmentBase *env) {
-		scanAllSlots(env);
+		scanAllSlots(env, NULL);
 		completeScan();
 	}
 

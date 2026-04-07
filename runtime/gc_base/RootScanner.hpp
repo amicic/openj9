@@ -44,6 +44,7 @@
 #include "RootScannerTypes.h"
 #include "Task.hpp"
 #include "VMClassSlotIterator.hpp"
+#include "CompactScheme.hpp"
 
 class GC_HashTableIterator;
 class GC_SlotObject;
@@ -417,10 +418,10 @@ public:
 
 	virtual void scanRoots(MM_EnvironmentBase *env);
 	virtual void scanClearable(MM_EnvironmentBase *env);
-	virtual void scanAllSlots(MM_EnvironmentBase *env);
+	virtual void scanAllSlots(MM_EnvironmentBase *env, MM_CompactScheme *compactScheme);
 
 #if defined(J9VM_GC_MODRON_SCAVENGER)
-	virtual void scanRememberedSet(MM_EnvironmentBase *env);
+	virtual void scanRememberedSet(MM_EnvironmentBase *env, MM_CompactScheme *compactScheme);
 #endif /* J9VM_GC_MODRON_SCAVENGER */
 
 	virtual void scanClasses(MM_EnvironmentBase *env);
