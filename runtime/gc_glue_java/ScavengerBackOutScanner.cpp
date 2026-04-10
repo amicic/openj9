@@ -57,7 +57,7 @@ MM_ScavengerBackOutScanner::scanAllSlots(MM_EnvironmentBase *env)
 	}
 
 	/* Walk roots fixing up pointers through reverse forwarding information */
-	MM_RootScanner::scanAllSlots(env, NULL);
+	MM_RootScanner::scanAllSlots(env);
 
 	/* Back out Continuation Processing */
 	MM_HeapRegionDescriptorStandard *region = NULL;

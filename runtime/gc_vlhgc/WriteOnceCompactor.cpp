@@ -1929,7 +1929,7 @@ void
 MM_WriteOnceCompactor::verifyHeap(MM_EnvironmentVLHGC *env, bool beforeCompaction) {
 
 	MM_WriteOnceCompactorCheckMarkRoots rootChecker(env);
-	rootChecker.scanAllSlots(env, NULL);
+	rootChecker.scanAllSlots(env);
 
 	/* Check that the heap alignment is as compaction expects it. Compaction
 	 * expects that the heap will split into a whole number of pages where

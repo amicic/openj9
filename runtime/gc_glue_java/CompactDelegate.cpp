@@ -55,8 +55,7 @@ MM_CompactDelegate::verifyHeap(MM_EnvironmentBase *env, MM_MarkMap *markMap)
 {
 	MM_GCExtensionsBase *extensions = env->getExtensions();
 	MM_CompactSchemeCheckMarkRoots rootChecker(MM_EnvironmentStandard::getEnvironment(env));
-	// TODO: just passing in null I guess cause don't need it?
-	rootChecker.scanAllSlots(env, NULL);
+	rootChecker.scanAllSlots(env);
 
 	/* Check that the heap alignment is as compaction expects it. Compaction
 	 * expects that the heap will split into a whole number of pages where
@@ -120,9 +119,7 @@ void
 MM_CompactDelegate::fixupRoots(MM_EnvironmentBase *env, MM_CompactScheme *compactScheme)
 {
 	MM_CompactSchemeFixupRoots rootScanner(env, compactScheme);
-	// TODO: need to pass compactScheme in to use it to make a the fixupObject object
-	// MM_CompactSchemeFixupObject fixupObject(env, this);
-	rootScanner.scanAllSlots(env, compactScheme);
+	rootScanner.scanAllSlots(env);
 }
 
 void

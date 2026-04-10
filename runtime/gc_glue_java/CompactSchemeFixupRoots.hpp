@@ -99,6 +99,15 @@ public:
 		reportScanningEnded(RootScannerEntity_ContinuationObjects);
 	}
 
+#if defined(J9VM_GC_MODRON_SCAVENGER)
+	virtual void doRememberedSetSlot(J9Object **slotPtr, GC_RememberedSetSlotIterator *rememberedSetSlotIterator){
+		// TODO: change this for nurseryOnly
+		doSlot(slotPtr);
+	}
+#endif /* defined(J9VM_GC_MODRON_SCAVENGER) */
+
+
+
 private:
 #if defined(J9VM_GC_FINALIZATION)
 	void fixupFinalizableObjects(MM_EnvironmentBase *env);
