@@ -116,9 +116,10 @@ MM_CompactDelegate::verifyHeap(MM_EnvironmentBase *env, MM_MarkMap *markMap)
 }
 
 void
-MM_CompactDelegate::fixupRoots(MM_EnvironmentBase *env, MM_CompactScheme *compactScheme)
+MM_CompactDelegate::fixupRoots(MM_EnvironmentBase *env, MM_CompactScheme *compactScheme, bool nurseryOnly)
 {
-	MM_CompactSchemeFixupRoots rootScanner(env, compactScheme);
+	// DEV: change this for new constructor
+	MM_CompactSchemeFixupRoots rootScanner(env, compactScheme, nurseryOnly);
 	rootScanner.scanAllSlots(env);
 }
 

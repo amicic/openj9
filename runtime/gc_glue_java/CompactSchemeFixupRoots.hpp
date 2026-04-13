@@ -34,11 +34,15 @@
 class MM_CompactSchemeFixupRoots : public MM_RootScanner {
 private:
 	MM_CompactScheme* _compactScheme;
+	MM_CompactSchemeFixupObject fixupObject;
+	bool nurseryOnly;
 
 public:
-	MM_CompactSchemeFixupRoots(MM_EnvironmentBase *env, MM_CompactScheme* compactScheme) :
+	MM_CompactSchemeFixupRoots(MM_EnvironmentBase *env, MM_CompactScheme* compactScheme, bool nurseryOnly) :
 		MM_RootScanner(env),
-		_compactScheme(compactScheme)
+		_compactScheme(compactScheme),
+		fixupObject(env, compactScheme),
+		nurseryOnly(nurseryOnly) // TODO: is there a better convention for this?
 	{
 		setIncludeStackFrameClassReferences(false);
 	}
@@ -101,8 +105,13 @@ public:
 
 #if defined(J9VM_GC_MODRON_SCAVENGER)
 	virtual void doRememberedSetSlot(J9Object **slotPtr, GC_RememberedSetSlotIterator *rememberedSetSlotIterator){
-		// TODO: change this for nurseryOnly
-		doSlot(slotPtr);
+		if (!nurseryOnly)
+		{
+			MM_RootScanner::doRememberedSetSlot(slotPtr, rememberedSetSlotIterator);
+		}
+		//doSlot(slotPtr);
+		// run fixupObject on slotPtr
+		fixupObject.fixupObject(MM_EnvironmentStandard::getEnvironment(_env), *slotPtr);
 	}
 #endif /* defined(J9VM_GC_MODRON_SCAVENGER) */
 
