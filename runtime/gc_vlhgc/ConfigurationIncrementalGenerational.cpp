@@ -293,9 +293,9 @@ MM_ConfigurationIncrementalGenerational::initialize(MM_EnvironmentBase *env)
 		if (MM_GCExtensions::OMR_GC_SCAVENGER_SCANORDERING_NONE == extensions->scavengerScanOrdering) {
 			extensions->scavengerScanOrdering = MM_GCExtensions::OMR_GC_SCAVENGER_SCANORDERING_DYNAMIC_BREADTH_FIRST;
 		} else if (MM_GCExtensions::OMR_GC_SCAVENGER_SCANORDERING_HIERARCHICAL == extensions->scavengerScanOrdering) {
-			PORT_ACCESS_FROM_ENVIRONMENT(env);
-			j9nls_printf(PORTLIB, J9NLS_WARNING, J9NLS_GC_OPTIONS_HIERARCHICAL_SCAN_ORDERING_NOT_SUPPORTED_WARN, "balanced");
-			extensions->scavengerScanOrdering = MM_GCExtensions::OMR_GC_SCAVENGER_SCANORDERING_DYNAMIC_BREADTH_FIRST;
+			//PORT_ACCESS_FROM_ENVIRONMENT(env);
+			//j9nls_printf(PORTLIB, J9NLS_WARNING, J9NLS_GC_OPTIONS_HIERARCHICAL_SCAN_ORDERING_NOT_SUPPORTED_WARN, "balanced");
+			extensions->scavengerScanOrdering = MM_GCExtensions::OMR_GC_SCAVENGER_SCANORDERING_HIERARCHICAL;
 		}
 		extensions->setVLHGC(true);
 	}
