@@ -2899,7 +2899,8 @@ configurateGCWithPolicyAndOptions(OMR_VM* omrVM)
 	case gc_policy_gencon:
 		extensions->gcModeString = "-Xgcpolicy:gencon";
 		omrVM->gcPolicy = J9_GC_POLICY_GENCON;
-		ccMark = (1 != j9sysinfo_get_number_CPUs_by_type(J9PORT_CPU_TARGET));
+		//ccMark = (1 != j9sysinfo_get_number_CPUs_by_type(J9PORT_CPU_TARGET));
+		ccMark = false;
 		/* scavenge, concurrentMark, noConcurrentSweep, loa */
 		setDefaultConfigOptions(extensions, true, ccMark, false, true);
 		result = configurateGCWithPolicyAndOptionsStandard(&env);
