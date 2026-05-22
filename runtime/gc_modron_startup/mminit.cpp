@@ -2872,7 +2872,7 @@ configurateGCWithPolicyAndOptionsStandard(MM_EnvironmentBase *env)
 MM_Configuration *
 configurateGCWithPolicyAndOptions(OMR_VM* omrVM)
 {
-	J9JavaVM *vm = (J9JavaVM*) omrVM->_language_vm;
+	//J9JavaVM *vm = (J9JavaVM*) omrVM->_language_vm;
 	//PORT_ACCESS_FROM_JAVAVM(vm);
 	MM_Configuration *result = NULL;
 	MM_GCExtensions *extensions = MM_GCExtensions::getExtensions(omrVM);
