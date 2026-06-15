@@ -335,6 +335,8 @@ public:
 	MMINLINE bool
 	isConcurrentScanningComplete(MM_EnvironmentBase *env)
 	{
+		OMRPORT_ACCESS_FROM_ENVIRONMENT(env);
+		omrtty_printf("_scanClassesMode %s\n", _scanClassesMode.getScanClassesModeAsString());
 #if defined(J9VM_GC_DYNAMIC_CLASS_UNLOADING)
 		return !_scanClassesMode.isPendingOrActiveMode();
 #else
