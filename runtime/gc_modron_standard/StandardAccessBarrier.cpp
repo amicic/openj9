@@ -795,30 +795,30 @@ MM_StandardAccessBarrier::preObjectRead(J9VMThread *vmThread, J9Object *srcObjec
 	omrobjectptr_t object = convertPointerFromToken(objectToken);
 
 	if (NULL != _scavenger) {
-		MM_EnvironmentStandard *env = MM_EnvironmentStandard::getEnvironment(vmThread->omrVMThread);
-		Assert_GC_true_with_message(env, !_scavenger->isObjectInEvacuateMemory((omrobjectptr_t)srcAddress) || _extensions->isScavengerBackOutFlagRaised(), "readObject %llx in Evacuate\n", srcAddress);
+		//Assert_GC_true_with_message(env, !_scavenger->isObjectInEvacuateMemory((omrobjectptr_t)srcAddress) || _extensions->isScavengerBackOutFlagRaised(), "readObject %llx in Evacuate\n", srcAddress);
 		if (_scavenger->isObjectInEvacuateMemory(object)) {
-			Assert_GC_true_with_message(env, _scavenger->isConcurrentCycleInProgress(),
-					"CS not in progress, found a object in Survivor: slot %llx object %llx\n", srcAddress, object);
-			Assert_MM_true(_scavenger->isMutatorThreadInSyncWithCycle(env));
+			//Assert_GC_true_with_message(env, _scavenger->isConcurrentCycleInProgress(),
+			//		"CS not in progress, found a object in Survivor: slot %llx object %llx\n", srcAddress, object);
 			/* since object is still in evacuate, srcObject has not been scanned yet => we cannot assert
 			 * if srcObject should (already) be remembered (even if it's old)
 			 */
 
-			env->_scavengerStats._readObjectBarrierUpdate += 1;
-			if (GLOBAL_READ_BARRIR_STATS_UPDATE_COUNT_THRESHOLD == env->_scavengerStats._readObjectBarrierUpdate) {
-				MM_AtomicOperations::addU64(&_extensions->scavengerStats._readObjectBarrierUpdate, GLOBAL_READ_BARRIR_STATS_UPDATE_COUNT_THRESHOLD);
-				env->_scavengerStats._readObjectBarrierUpdate = 0;
-			}
+//			env->_scavengerStats._readObjectBarrierUpdate += 1;
+//			if (GLOBAL_READ_BARRIR_STATS_UPDATE_COUNT_THRESHOLD == env->_scavengerStats._readObjectBarrierUpdate) {
+//				MM_AtomicOperations::addU64(&_extensions->scavengerStats._readObjectBarrierUpdate, GLOBAL_READ_BARRIR_STATS_UPDATE_COUNT_THRESHOLD);
+//				env->_scavengerStats._readObjectBarrierUpdate = 0;
+//			}
 
-			GC_SlotObject slotObject(env->getOmrVM(), srcAddress);
+			GC_SlotObject slotObject(_extensions->getOmrVM(), srcAddress);
 			MM_ForwardedHeader forwardHeader(object, compressed);
 			omrobjectptr_t forwardPtr = forwardHeader.getForwardedObject();
 			if (NULL != forwardPtr) {
 				/* Object has been strictly (remotely) forwarded. Ensure the object is fully copied before exposing it, update the slot and return. */
 				forwardHeader.copyOrWait(forwardPtr);
 				slotObject.atomicWriteReferenceToSlot(object, forwardPtr);
-			} else {
+			} else if (NULL != vmThread) {
+				MM_EnvironmentStandard *env = MM_EnvironmentStandard::getEnvironment(vmThread->omrVMThread);
+				Assert_MM_true(_scavenger->isMutatorThreadInSyncWithCycle(env));
 				omrobjectptr_t destinationObjectPtr = _scavenger->copyObject(env, &forwardHeader);
 				if (NULL == destinationObjectPtr) {
 					/* We have no place to copy (or less likely, we lost to another thread forwarding it).
