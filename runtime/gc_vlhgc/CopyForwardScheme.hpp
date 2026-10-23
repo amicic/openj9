@@ -548,7 +548,7 @@ private:
 	 * @param objectReserveSizeInBytes Amount of bytes to be reserved (can be greater than the original object size) for copying.
 	 * @return a CopyScanCache which contains the reserved memory or NULL if the reserve was not successful.
 	 */
-	MMINLINE MM_CopyScanCacheVLHGC *reserveMemoryForCopy(MM_EnvironmentVLHGC *env, J9Object *objectToEvacuate, MM_AllocationContextTarok *reservingContext, uintptr_t objectReserveSizeInBytes);
+	MM_CopyScanCacheVLHGC *reserveMemoryForCopy(MM_EnvironmentVLHGC *env, J9Object *objectToEvacuate, MM_AllocationContextTarok *reservingContext, uintptr_t objectReserveSizeInBytes);
 
 	void flushCaches(MM_CopyScanCacheVLHGC *cache);
 
@@ -859,7 +859,7 @@ private:
 	 * @param forwardedHeader - forwarded header of an object
 	 * @param destinationObjectPtr - destinationObjectPtr of the object described by the forwardedHeader
 	 */
-	MMINLINE void depthCopyHotFields(MM_EnvironmentVLHGC *env, J9Class *clazz, J9Object *destinationObjectPtr, MM_AllocationContextTarok *reservingContext);
+	void depthCopyHotFields(MM_EnvironmentVLHGC *env, J9Class *clazz, J9Object *destinationObjectPtr, MM_AllocationContextTarok *reservingContext);
 
 	/* Copy the hot field of an object.
 	 * Valid if scavenger dynamicBreadthScanOrdering is enabled.
@@ -894,7 +894,7 @@ private:
 	 * @param dstObject Destination object that was copy forwarded to.
 	 * @param dstCache Destination copy scan cache for the forwarded object.
 	 */
-	MMINLINE void updateMarkMapAndCardTableOnCopy(MM_EnvironmentVLHGC *env, J9Object *srcObject, J9Object *dstObject, MM_CopyScanCacheVLHGC *dstCache);
+	void updateMarkMapAndCardTableOnCopy(MM_EnvironmentVLHGC *env, J9Object *srcObject, J9Object *dstObject, MM_CopyScanCacheVLHGC *dstCache);
 
 	/**
 	 * Determine whether a copy forward cycle that has been started did complete successfully.
@@ -1052,7 +1052,7 @@ protected:
 	 * @param[in] objectPtr A pointer to the object being copied
 	 * @return The reservingContext or the object's owning context if the suggestedContext is not a preferred object relocation context
 	 */
-	MMINLINE MM_AllocationContextTarok *getPreferredAllocationContext(MM_AllocationContextTarok *suggestedContext, J9Object *objectPtr);
+	MM_AllocationContextTarok *getPreferredAllocationContext(MM_AllocationContextTarok *suggestedContext, J9Object *objectPtr);
 
 public:
 
