@@ -549,7 +549,7 @@ private:
 	 * @param objectReserveSizeInBytes Amount of bytes to be reserved (can be greater than the original object size) for copying.
 	 * @return a CopyScanCache which contains the reserved memory or NULL if the reserve was not successful.
 	 */
-	MMINLINE MM_CopyScanCacheVLHGC *reserveMemoryForCopy(MM_EnvironmentVLHGC *env, J9Object *objectToEvacuate, MM_AllocationContextTarok **reservingContext, uintptr_t objectReserveSizeInBytes);
+	MMINLINE MM_CopyScanCacheVLHGC *reserveMemoryForCopy(MM_EnvironmentVLHGC *env, J9Object *objectToEvacuate, uintptr_t objectReserveSizeInBytes, MM_AllocationContextTarok **reservingContext, uintptr_t *sourceCompactGroup, uintptr_t *destinationCompactGroup);
 
 	void flushCaches(MM_CopyScanCacheVLHGC *cache);
 

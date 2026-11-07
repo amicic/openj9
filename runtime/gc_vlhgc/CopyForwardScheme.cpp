@@ -1134,7 +1134,7 @@ MM_CopyForwardScheme::getDesiredCopyCacheSize(MM_EnvironmentVLHGC *env, uintptr_
 }
 
 MM_CopyScanCacheVLHGC *
-MM_CopyForwardScheme::reserveMemoryForCopy(MM_EnvironmentVLHGC *env, J9Object *objectToEvacuate, MM_AllocationContextTarok **reservingContext, uintptr_t objectReserveSizeInBytes)
+MM_CopyForwardScheme::reserveMemoryForCopy(MM_EnvironmentVLHGC *env, J9Object *objectToEvacuate, uintptr_t objectReserveSizeInBytes, MM_AllocationContextTarok **reservingContext, uintptr_t *sourceCompactGroup, uintptr_t *destinationCompactGroup)
 {
 	void *addrBase = NULL;
 	void *addrTop = NULL;
@@ -1143,19 +1143,20 @@ MM_CopyForwardScheme::reserveMemoryForCopy(MM_EnvironmentVLHGC *env, J9Object *o
 
 	MM_HeapRegionDescriptorVLHGC *region = (MM_HeapRegionDescriptorVLHGC *)_regionManager->tableDescriptorForAddress(objectToEvacuate);
 
-	uintptr_t compactGroup = 0;
-
 	if (_singleAllocationContext) {
-		compactGroup = MM_CompactGroupManager::getCompactGroupNumberForSingleContext(region);
+		*destinationCompactGroup = MM_CompactGroupManager::getCompactGroupNumberForSingleContext(region);
+		*sourceCompactGroup = *destinationCompactGroup;
 	} else {
+		*sourceCompactGroup = MM_CompactGroupManager::getCompactGroupNumber(env, region); // not reservingContext!
+
 		*reservingContext = getPreferredAllocationContext(*reservingContext, objectToEvacuate);
 
-		compactGroup = MM_CompactGroupManager::getCompactGroupNumberInContext(env, region, *reservingContext);
+		*destinationCompactGroup = MM_CompactGroupManager::getCompactGroupNumberInContext(env, region, *reservingContext);
 	}
 
-	MM_CopyForwardCompactGroup *copyForwardCompactGroup = &env->_copyForwardCompactGroups[compactGroup];
+	MM_CopyForwardCompactGroup *copyForwardCompactGroup = &env->_copyForwardCompactGroups[*destinationCompactGroup];
 	
-	Assert_MM_true(compactGroup < _compactGroupMaxCount);
+	Assert_MM_true(*destinationCompactGroup < _compactGroupMaxCount);
 
 	MM_CopyScanCacheVLHGC *copyCache = copyForwardCompactGroup->_copyCache;
 
@@ -1173,12 +1174,12 @@ retry:
 				Assert_MM_true(NULL != copyForwardCompactGroup->_TLHRemainderTop);
 				copyForwardCompactGroup->resetTLHRemainder();
 
-				uintptr_t sublistCount = _reservedRegionList[compactGroup]._sublistCount;
+				uintptr_t sublistCount = _reservedRegionList[*destinationCompactGroup]._sublistCount;
 				uintptr_t sublistIndex = env->getWorkerID() % sublistCount;
-				MM_ReservedRegionListHeader::Sublist *regionList = &_reservedRegionList[compactGroup]._sublists[sublistIndex];
+				MM_ReservedRegionListHeader::Sublist *regionList = &_reservedRegionList[*destinationCompactGroup]._sublists[sublistIndex];
 				listLock = &regionList->_lock;
 			} else if (minimumSingleObjectAllocateSize < minimumRequiredCacheSize) {
-				addrBase = reserveMemoryForObject(env, compactGroup, minimumRequiredCacheSize, &listLock);
+				addrBase = reserveMemoryForObject(env, *destinationCompactGroup, minimumRequiredCacheSize, &listLock);
 
 				if (NULL != addrBase) {
 					addrTop = (void *)((uintptr_t)addrBase + minimumRequiredCacheSize);
@@ -1187,9 +1188,9 @@ retry:
 					copyForwardCompactGroup->_failedAllocateSize = minimumRequiredCacheSize;
 				}
 			}  else {
-				uintptr_t desiredCacheSize = getDesiredCopyCacheSize(env, compactGroup);
+				uintptr_t desiredCacheSize = getDesiredCopyCacheSize(env, *destinationCompactGroup);
 				desiredCacheSize = OMR_MAX(desiredCacheSize, minimumRequiredCacheSize);
-				if (!reserveMemoryForCache(env, compactGroup, desiredCacheSize, &addrBase, &addrTop, &listLock)) {
+				if (!reserveMemoryForCache(env, *destinationCompactGroup, desiredCacheSize, &addrBase, &addrTop, &listLock)) {
 					/* failed to allocate - set the threshold to short-circut future alloc attempts:
 					 * we should never (in this GC) attempt to allocate a cache (TLH) from this compact group
 					 */
@@ -1200,7 +1201,7 @@ retry:
 
 		if (NULL != copyCache) {
 			/* we can't use this cache as a destination so release local cache first. */
-			MM_CopyScanCacheVLHGC *stoppedCache = stopCopyingIntoCache(env, compactGroup);
+			MM_CopyScanCacheVLHGC *stoppedCache = stopCopyingIntoCache(env, *destinationCompactGroup);
 			Assert_MM_true(stoppedCache == copyCache);
 
 			if (copyCache->isCurrentlyBeingScanned()) {
@@ -1241,7 +1242,7 @@ retry:
 			if (NULL != copyCache) {
 				copyForwardCompactGroup->_copyCache = copyCache;
 				copyForwardCompactGroup->_copyCacheLock = listLock;
-				reinitCache(env, copyCache, addrBase, addrTop, compactGroup);
+				reinitCache(env, copyCache, addrBase, addrTop, *destinationCompactGroup);
 
 				Assert_MM_true(NULL != listLock);
 				Assert_MM_true(0 == copyForwardCompactGroup->_freeMemoryMeasured);
@@ -1982,7 +1983,10 @@ MM_CopyForwardScheme::copy(MM_EnvironmentVLHGC *env, MM_AllocationContextTarok *
 		}
 #endif /* J9VM_INTERP_NATIVE_SUPPORT */
 
-		copyCache = reserveMemoryForCopy(env, object, &reservingContext, objectReserveSizeInBytes);
+		uintptr_t sourceCompactGroup = 0;
+		uintptr_t destinationCompactGroup = 0;
+
+		copyCache = reserveMemoryForCopy(env, object, objectReserveSizeInBytes, &reservingContext, &sourceCompactGroup, &destinationCompactGroup);
 
 		/* Check if memory was reserved successfully */
 		if (NULL == copyCache) {
@@ -1992,7 +1996,7 @@ MM_CopyForwardScheme::copy(MM_EnvironmentVLHGC *env, MM_AllocationContextTarok *
 			Assert_MM_false(copyCache->isSplitArray());
 
 			/* Memory has been reserved */
-			uintptr_t destinationCompactGroup = copyCache->_compactGroup;
+			Assert_MM_true(destinationCompactGroup == copyCache->_compactGroup);
 			J9Object *destinationObjectPtr = (J9Object *)copyCache->cacheAlloc;
 			Assert_MM_true(NULL != destinationObjectPtr);
 
@@ -2075,13 +2079,15 @@ MM_CopyForwardScheme::copy(MM_EnvironmentVLHGC *env, MM_AllocationContextTarok *
 					env->_copyForwardCompactGroups[destinationCompactGroup]._freeMemoryMeasured += hotFieldPadSize;
 				}
 				MM_HeapRegionDescriptorVLHGC *sourceRegion = (MM_HeapRegionDescriptorVLHGC *)_regionManager->tableDescriptorForAddress(object);
-				uintptr_t sourceCompactGroup = MM_CompactGroupManager::getCompactGroupNumber(env, sourceRegion);
+				Assert_MM_true(MM_CompactGroupManager::getCompactGroupNumber(env, sourceRegion) == sourceCompactGroup);
 				if (sourceRegion->isEden()) {
+					Assert_MM_true(0 == sourceRegion->getAge());
 					env->_copyForwardCompactGroups[sourceCompactGroup]._edenStats._liveObjects += 1;
 					env->_copyForwardCompactGroups[sourceCompactGroup]._edenStats._liveBytes += objectCopySizeInBytes;
 					env->_copyForwardCompactGroups[destinationCompactGroup]._edenStats._copiedObjects += 1;
 					env->_copyForwardCompactGroups[destinationCompactGroup]._edenStats._copiedBytes += objectCopySizeInBytes;
 				} else {
+					//Assert_MM_true(0 != sourceRegion->getAge());
 					env->_copyForwardCompactGroups[sourceCompactGroup]._nonEdenStats._liveObjects += 1;
 					env->_copyForwardCompactGroups[sourceCompactGroup]._nonEdenStats._liveBytes += objectCopySizeInBytes;
 					env->_copyForwardCompactGroups[destinationCompactGroup]._nonEdenStats._copiedObjects += 1;
