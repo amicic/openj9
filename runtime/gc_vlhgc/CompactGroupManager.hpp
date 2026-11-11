@@ -84,15 +84,6 @@ public:
 		return getCompactGroupNumberForAge(env, region->getAge(), migrationDestination);
 	}
 
-	/** Computes the compact group index for the receiver.
-	 * @param region Region to compute the compact group number for
-	 */
-
-	MMINLINE static UDATA getCompactGroupNumberForSingleContext(MM_HeapRegionDescriptorVLHGC *region)
-	{
-		return getCompactGroupNumberForAge(region->getAge());
-	}
-
 	/**
 	 * Computes the compact group index for the receiver.
 	 * @param env[in] The thread
