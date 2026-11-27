@@ -988,6 +988,9 @@ MM_StandardAccessBarrier::checkClassLive(J9JavaVM *javaVM, J9Class *classPtr)
 void
 MM_StandardAccessBarrier::preMountContinuation(J9VMThread *vmThread, j9object_t contObject)
 {
+	PORT_ACCESS_FROM_VMC(vmThread);
+	j9tty_printf(PORTLIB, "preMountContinuation continuation %p\n", contObject, J9VMJDKINTERNALVMCONTINUATION_VMREF(vmThread, contObject));
+
 #if defined(OMR_GC_CONCURRENT_SCAVENGER)
 	if (_extensions->isConcurrentScavengerInProgress()) {
 		/* concurrent scavenger in active */
@@ -997,13 +1000,22 @@ MM_StandardAccessBarrier::preMountContinuation(J9VMThread *vmThread, j9object_t 
 		_scavenger->getDelegate()->scanContinuationNativeSlots(env, contObject, reason, beingMounted);
 	}
 #endif /* OMR_GC_CONCURRENT_SCAVENGER */
+
+	MM_EnvironmentStandard *env = MM_EnvironmentStandard::getEnvironment(vmThread->omrVMThread);
+	_scavenger->getDelegate()->scanContinuationNativeSlots(env, contObject, SCAN_REASON_PREMOUNT, true);
+
 }
 
 void
 MM_StandardAccessBarrier::postUnmountContinuation(J9VMThread *vmThread, j9object_t contObject)
 {
+	PORT_ACCESS_FROM_VMC(vmThread);
+	j9tty_printf(PORTLIB, "postUnmountContinuation continuation %p\n", contObject, J9VMJDKINTERNALVMCONTINUATION_VMREF(vmThread, contObject));
 	/* Conservatively assume that via mutations of stack slots (which are not subject to access barriers),
 	 * all post-write barriers have been triggered on this Continuation object, since it's been mounted.
 	 */
 	postBatchObjectStore(vmThread, contObject);
+
+	MM_EnvironmentStandard *env = MM_EnvironmentStandard::getEnvironment(vmThread->omrVMThread);
+	_scavenger->getDelegate()->scanContinuationNativeSlots(env, contObject, SCAN_REASON_POSTMOUNT, false);
 }

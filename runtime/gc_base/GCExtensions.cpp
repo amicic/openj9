@@ -357,7 +357,8 @@ MM_GCExtensions::needScanStacksForContinuationObject(J9VMThread *vmThread, j9obj
 	} else {
 		/* for STW GCs */
 		ContinuationState continuationState = *continuationStatePtr;
-		Assert_MM_false(beingMounted);
+		// might not be valid with SCAN_REASON_ESCAPE_THREAD_REFERENCE
+		//Assert_MM_false(beingMounted);
 		Assert_MM_false(VM_ContinuationHelpers::isConcurrentlyScanned(continuationState));
 		needScan = VM_ContinuationHelpers::isActive(continuationState) && !VM_ContinuationHelpers::isFullyMounted(continuationState);
 	}

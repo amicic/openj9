@@ -53,6 +53,9 @@
 #include "ConcurrentSweepScheme.hpp"
 #endif /* J9VM_GC_CONCURRENT_SWEEP */
 #include "ConfigurationDelegate.hpp"
+#if JAVA_SPEC_VERSION >= 19
+#include "ContinuationHelpers.hpp"
+#endif /* JAVA_SPEC_VERSION >= 19 */
 #if JAVA_SPEC_VERSION >= 24
 #include "ContinuationSlotIterator.hpp"
 #endif /* JAVA_SPEC_VERSION >= 24 */
@@ -279,11 +282,17 @@ MM_ScavengerDelegate::internalGarbageCollect_shouldPercolateGarbageCollect(MM_En
 void
 MM_ScavengerDelegate::doSlot(MM_EnvironmentStandard *env, omrobjectptr_t *slotPtr, MM_ScavengeScanReason reason, bool *shouldRemember)
 {
+	OMRPORT_ACCESS_FROM_ENVIRONMENT(env);
 	MM_Scavenger *scavenger = _extensions->scavenger;
+	omrobjectptr_t object = *slotPtr;
 
 	switch (reason) {
 	case SCAN_REASON_SCAVENGE:
 		*shouldRemember |= scavenger->copyObjectSlot(env, slotPtr);
+		if (_extensions->isOld(*slotPtr) && (object != *slotPtr)) {
+			omrtty_printf("MM_ScavengerDelegate::doSlot SCAVENGE %p just tenured, remembered bits %zu\n", *slotPtr, _extensions->objectModel.getRememberedBits(*slotPtr));
+		}
+
 		break;
 	case SCAN_REASON_FIXUP:
 #if defined(OMR_GC_CONCURRENT_SCAVENGER)
@@ -303,6 +312,25 @@ MM_ScavengerDelegate::doSlot(MM_EnvironmentStandard *env, omrobjectptr_t *slotPt
 	case SCAN_REASON_SHOULDREMEMBER:
 		*shouldRemember |= scavenger->shouldRememberSlot(slotPtr);
 		break;
+	case SCAN_REASON_PREMOUNT:
+		if (_extensions->isOld(*slotPtr)) {
+			omrtty_printf("MM_ScavengerDelegate::doSlot PREMOUNT %p is already old, remembered bits %zu, shouldRemember %zu BEFORE\n",
+					*slotPtr, _extensions->objectModel.getRememberedBits(*slotPtr), scavenger->shouldRememberObject(env, *slotPtr));
+// 			FIX: now that continuation is about to mounted we have to auto-remember any thread/stack referenced old object, even without any nursery reference
+//			to allow JIT to elide WB for Nursery stores into such object
+
+//			J9VMThread *vmThread = (J9VMThread *)env->getOmrVMThread()->_language_vmthread;
+//			_extensions->accessBarrier->recentlyAllocatedObject(vmThread, *slotPtr);
+//			omrtty_printf("MM_ScavengerDelegate::doSlot PREMOUNT %p is already old, remembered bits %zu, shouldRemember %zu AFTER\n",
+//					*slotPtr, _extensions->objectModel.getRememberedBits(*slotPtr), scavenger->shouldRememberObject(env, *slotPtr));
+		}
+		break;
+	case SCAN_REASON_POSTMOUNT:
+		if (_extensions->isOld(*slotPtr)) {
+			omrtty_printf("MM_ScavengerDelegate::doSlot POSTMOUNT %p is already old, remembered bits %zu, shouldRemember %zu\n",
+					*slotPtr, _extensions->objectModel.getRememberedBits(*slotPtr), scavenger->shouldRememberObject(env, *slotPtr));
+		}
+		break;
 	}
 }
 
@@ -311,8 +339,14 @@ MM_ScavengerDelegate::doSlot(MM_EnvironmentStandard *env, omrobjectptr_t *slotPt
 void
 MM_ScavengerDelegate::doContinuationSlot(MM_EnvironmentStandard *env, omrobjectptr_t *slotPtr, MM_ScavengeScanReason reason, bool *shouldRemember, GC_ContinuationSlotIterator *continuationSlotIterator)
 {
+//	OMRPORT_ACCESS_FROM_ENVIRONMENT(env);
+//	omrobjectptr_t object = *slotPtr;
+
 	if (_extensions->scavenger->isHeapObject(*slotPtr) && !_extensions->heap->objectIsInGap(*slotPtr)) {
 		doSlot(env, slotPtr, reason, shouldRemember);
+//		if (_extensions->isOld(*slotPtr) && (object != *slotPtr)) {
+//			omrtty_printf("MM_ScavengerDelegate::doContinuationSlot %p -> %p just tenured currentContinuation %p\n", object, *slotPtr, ((J9StackWalkState *)walkState)->walkThread->currentContinuation);
+//		}
 	} else if (NULL != *slotPtr) {
 		Assert_MM_true(GC_ContinuationSlotIterator::state_monitor_records == continuationSlotIterator->getState());
 	}
@@ -322,9 +356,16 @@ MM_ScavengerDelegate::doContinuationSlot(MM_EnvironmentStandard *env, omrobjectp
 void
 MM_ScavengerDelegate::doStackSlot(MM_EnvironmentStandard *env, omrobjectptr_t *slotPtr, MM_ScavengeScanReason reason, bool *shouldRemember, void *walkState, const void *stackLocation)
 {
+	OMRPORT_ACCESS_FROM_ENVIRONMENT(env);
+	omrobjectptr_t object = *slotPtr;
+
 	if (_extensions->scavenger->isHeapObject(*slotPtr) && !_extensions->heap->objectIsInGap(*slotPtr)) {
 		Assert_MM_validStackSlot(MM_StackSlotValidator(MM_StackSlotValidator::COULD_BE_FORWARDED, *slotPtr, stackLocation, walkState).validate(env));
 		doSlot(env, slotPtr, reason, shouldRemember);
+		if (_extensions->isOld(*slotPtr) && (object != *slotPtr)) {
+			omrtty_printf("MM_ScavengerDelegate::doStackSlot %p -> %p just tenured, remembered bits %zu currentContinuation %p\n",
+					object, *slotPtr, _extensions->objectModel.getRememberedBits(*slotPtr), ((J9StackWalkState *)walkState)->walkThread->currentContinuation);
+		}
 	} else if (NULL != *slotPtr) {
 		/* stack object - just validate */
 		Assert_MM_validStackSlot(MM_StackSlotValidator(MM_StackSlotValidator::NOT_ON_HEAP, *slotPtr, stackLocation, walkState).validate(env));
@@ -344,6 +385,8 @@ stackSlotIteratorForScavenge(J9JavaVM *javaVM, J9Object **slotPtr, void *localDa
 bool
 MM_ScavengerDelegate::scanContinuationNativeSlots(MM_EnvironmentStandard *env, omrobjectptr_t objectPtr, MM_ScavengeScanReason reason, bool beingMounted)
 {
+	OMRPORT_ACCESS_FROM_ENVIRONMENT(env);
+
 	bool shouldRemember = false;
 
 	J9VMThread *currentThread = (J9VMThread *)env->getLanguageVMThread();
@@ -357,17 +400,25 @@ MM_ScavengerDelegate::scanContinuationNativeSlots(MM_EnvironmentStandard *env, o
 #endif /* defined(OMR_GC_CONCURRENT_SCAVENGER) */
 	}
 	const bool isGlobalGC = false;
-	if (MM_GCExtensions::needScanStacksForContinuationObject(currentThread, objectPtr, isConcurrentGC, isGlobalGC, beingMounted)) {
+	if ((SCAN_REASON_PREMOUNT == reason) || (SCAN_REASON_POSTMOUNT == reason) || MM_GCExtensions::needScanStacksForContinuationObject(currentThread, objectPtr, isConcurrentGC, isGlobalGC, beingMounted)) {
+
 		StackIteratorData4Scavenge localData;
 		localData.scavengerDelegate = this;
 		localData.env = env;
 		localData.reason = reason;
 		localData.shouldRemember = &shouldRemember;
 
+		ContinuationState volatile *continuationStatePtr = VM_ContinuationHelpers::getContinuationStateAddress(currentThread, objectPtr);
+		ContinuationState continuationState = *continuationStatePtr;
+		J9VMContinuation *continuation = J9VMJDKINTERNALVMCONTINUATION_VMREF(currentThread, objectPtr);
+
+		omrtty_printf("MM_ScavengerDelegate::scanContinuationNativeSlots continuation %p started scanning reason %zu beingMounted %zu fullyMounted %zu\n",
+				continuation, (uintptr_t)reason, (uintptr_t)beingMounted, (uintptr_t)VM_ContinuationHelpers::isFullyMounted(continuationState));
+
 		GC_VMThreadStackSlotIterator::scanContinuationSlots(currentThread, objectPtr, (void *)&localData, stackSlotIteratorForScavenge, false, false);
 
+
 #if JAVA_SPEC_VERSION >= 24
-		J9VMContinuation *continuation = J9VMJDKINTERNALVMCONTINUATION_VMREF(currentThread, objectPtr);
 		GC_ContinuationSlotIterator continuationSlotIterator(currentThread, continuation);
 
 		while (J9Object **slotPtr = continuationSlotIterator.nextSlot()) {
@@ -378,6 +429,14 @@ MM_ScavengerDelegate::scanContinuationNativeSlots(MM_EnvironmentStandard *env, o
 		if (isConcurrentGC) {
 			MM_GCExtensions::exitContinuationConcurrentGCScan(currentThread, objectPtr, isGlobalGC);
 		}
+
+		omrtty_printf("MM_ScavengerDelegate::scanContinuationNativeSlots continuation %p finished scanning\n", continuation);
+
+	} else {
+		J9VMContinuation *continuation = J9VMJDKINTERNALVMCONTINUATION_VMREF(currentThread, objectPtr);
+
+		omrtty_printf("MM_ScavengerDelegate::scanContinuationNativeSlots continuation %p NOT scanned\n", continuation);
+
 	}
 	return 	shouldRemember;
 }
